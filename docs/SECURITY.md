@@ -1,7 +1,5 @@
 # Contributing to Florestas.Social 🌱
 
----
-
 ## 🇺🇸 [EN] Hello there! 👋
 First off, thanks a lot for considering contributing to Florestas.Social! We are a passionate team working hard to bridge the gap between Real-World Assets (African Mahogany) and the Stellar network.
 
