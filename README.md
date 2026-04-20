@@ -544,6 +544,12 @@ Entusiasta de Ciência da Computação & Web3. Desejo transformar a lógica dos 
 
 *Convertendo Florescimento Ecológico em Prosperidade Programável na Stellar.*
 
+---
+### 📞 Contato / Contact
+Para parcerias B2B, auditorias ou dúvidas sobre o protocolo:
+- **Email:** gutogn@gmail.com
+- **WhatsApp:** [+55 88 99643-7794](https://wa.me/5588996437794)
+
 `rwa_vault` · `sbt_reputation` · `$FLORA` · `C-CRED` · `C-DEBT` · `S-CRED`
 `SEP-41` · `Soroban` · `x402` · `MPP` · `PoF` · `Regen Data Stream`
 
