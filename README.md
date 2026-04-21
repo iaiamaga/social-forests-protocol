@@ -14,7 +14,6 @@
 [![Standard: SEP-41](https://img.shields.io/badge/Standard-SEP--41-blue?style=for-the-badge)](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
 [![Payments: x402 + MPP](https://img.shields.io/badge/Payments-x402%20%2B%20MPP-brightgreen?style=for-the-badge)](https://developers.stellar.org/docs/build/agentic-payments)
 [![Frontend: Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![Stellar37°](https://img.shields.io/badge/Stellar37°-Acceleration-7B6FEE?style=for-the-badge)](https://stellar37.nearx.com.br)
 
 > 🇧🇷 [Versão em Português abaixo](#-social-forest-protocol-1)
 
