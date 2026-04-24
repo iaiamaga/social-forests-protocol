@@ -21,6 +21,10 @@ import RoleGuard from '@/components/RoleGuard';
 import { useAccountBalance } from '@/hooks/useAccountBalance';
 import { useHeroState } from '@/hooks/useHeroState';
 import { useUserImpact } from '@/hooks/useUserImpact';
+import { StickerAlbum } from '@/components/gamification/StickerAlbum';
+import { NftSticker } from '@/components/gamification/StickerCard';
+import { MedalBoard } from '@/components/gamification/MedalBoard';
+import { Medal } from '@/components/gamification/MedalBadge';
 
 export default function ConsumidorDashboard() {
   const { session } = useAuth();
@@ -33,31 +37,18 @@ export default function ConsumidorDashboard() {
   const isGlobalLoading = isBalanceLoading || heroState.isLoading || isImpactLoading;
   const hasError = balanceError || heroState.error || impactError;
 
-  const arvoresMock = [
-    {
-      id: 'Mogno-01',
-      nome: 'Mogno Africano #142',
-      idade: '18 meses',
-      status: 'Saudável',
-      imagem: '🌲',
-      co2: '150kg',
-      local: 'Viveiro Maravilha'
-    },
-    {
-      id: 'Mogno-02',
-      nome: 'Mogno Africano #893',
-      idade: '6 meses',
-      status: 'Em Crescimento',
-      imagem: '🌱',
-      co2: '45kg',
-      local: 'Viveiro Esperança'
-    }
+  const mockNfts: NftSticker[] = [
+    { id: '1042', name: 'Mogno Africano #1042', rarity: 'Lenda', height: '3.2m', co2: '210kg', imageUrl: '🌳', isUnlocked: true },
+    { id: '893', name: 'Mogno Africano #893', rarity: 'Raro', height: '1.5m', co2: '85kg', imageUrl: '🌲', isUnlocked: true },
+    { id: '219', name: 'Mogno Africano #219', rarity: 'Comum', height: '0.4m', co2: '12kg', imageUrl: '🌱', isUnlocked: true },
+    { id: '???', name: 'Próxima Semente', rarity: 'Bloqueado', isUnlocked: false },
   ];
 
-  const atividadesRecentes = [
-    { id: 1, tipo: 'missao', titulo: 'Frete Eco-friendly', empresa: 'VerdeFast', valor: '+120 Folhas', tempo: 'Há 2 dias' },
-    { id: 2, tipo: 'evolucao', titulo: 'Evolução de Muda', empresa: 'Protocolo', valor: 'Fase 2', tempo: 'Há 1 semana' },
-    { id: 3, tipo: 'compra', titulo: 'Xampú Natural', empresa: 'NaturalCare', valor: '+80 Folhas', tempo: 'Há 2 semanas' },
+  const mockMedals: Medal[] = [
+    { id: 'm1', title: 'Pioneiro', description: 'Entrou no protocolo no primeiro ano.', tier: 'Ouro', icon: '🌟', isUnlocked: true, date: '10/01/2026' },
+    { id: 'm2', title: 'Guardião Verde', description: 'Sequestrou mais de 100kg de CO2.', tier: 'Esmeralda', icon: '🛡️', isUnlocked: true, date: '05/03/2026' },
+    { id: 'm3', title: 'Parceiro B2B', description: 'Primeira compra com cashback verde.', tier: 'Prata', icon: '🤝', isUnlocked: true, date: '12/04/2026' },
+    { id: 'm4', title: 'Lenda Viva', description: 'Evolua uma árvore para o nível Lenda.', tier: 'Bronze', icon: '👑', isUnlocked: false },
   ];
 
   return (
@@ -201,120 +192,19 @@ export default function ConsumidorDashboard() {
 
             </div>
 
-            {/* Seção Principal Inferior */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+            {/* Seção Principal Inferior - GAMIFICAÇÃO */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-10">
               
-              {/* Coleção de Árvores (Esquerda - Ocupa 2 colunas) */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    Sua Coleção <span className="text-slate-500 text-sm font-normal">({heroState.treesForged} ativos)</span>
-                  </h2>
-                  <Link href="/ativos" className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
-                    Explorar RWAs <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {arvoresMock.map((arvore) => (
-                    <div key={arvore.id} className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 hover:bg-slate-800/60 transition-colors cursor-pointer group">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-3xl border border-slate-700 shadow-inner group-hover:scale-105 transition-transform">
-                          {arvore.imagem}
-                        </div>
-                        <div>
-                          <h3 className="text-white font-bold mb-1">{arvore.nome}</h3>
-                          <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            {arvore.status}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-slate-950 rounded-xl p-3 border border-slate-800/50">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Idade</span>
-                          <span className="text-sm font-medium text-slate-300">{arvore.idade}</span>
-                        </div>
-                        <div className="bg-slate-950 rounded-xl p-3 border border-slate-800/50">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Captura CO₂</span>
-                          <span className="text-sm font-medium text-blue-400 flex items-center gap-1">
-                            {arvore.co2} <Wind className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
-                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" /> {arvore.local}
-                        </span>
-                        <button className="text-xs text-slate-400 hover:text-white transition-colors">
-                          Ver Detalhes →
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Card de Espaço Vazio / Nova Árvore */}
-                  <div className="bg-slate-900/30 border border-dashed border-slate-700 rounded-3xl p-5 flex flex-col items-center justify-center text-center hover:bg-slate-900/50 transition-colors group cursor-pointer">
-                    <div className="w-14 h-14 bg-slate-800/50 rounded-full flex items-center justify-center mb-3 group-hover:bg-slate-700/50 transition-colors">
-                      <Sprout className="w-6 h-6 text-slate-500 group-hover:text-emerald-400 transition-colors" />
-                    </div>
-                    <h3 className="text-sm font-medium text-slate-400 group-hover:text-slate-300">Plantar Nova Semente</h3>
-                    <p className="text-xs text-slate-600 mt-1">Acumule folhas para forjar a próxima árvore.</p>
-                  </div>
-                </div>
+              {/* Álbum de Figurinhas (Ativos Financeiros / RWAs) */}
+              <div className="xl:col-span-2">
+                <StickerAlbum stickers={mockNfts} />
               </div>
 
-              {/* Histórico e Missões (Direita - Ocupa 1 coluna) */}
-              <div className="space-y-4 lg:pl-4">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  Atividade <History className="w-5 h-5 text-slate-500" />
-                </h2>
-                
-                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-5">
-                  <div className="space-y-4">
-                    {atividadesRecentes.map((atividade) => (
-                      <div key={atividade.id} className="flex items-start gap-3 pb-4 border-b border-slate-800/50 last:border-0 last:pb-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                          atividade.tipo === 'missao' ? 'bg-green-500/10 text-green-400' :
-                          atividade.tipo === 'compra' ? 'bg-blue-500/10 text-blue-400' :
-                          'bg-purple-500/10 text-purple-400'
-                        }`}>
-                          {atividade.tipo === 'missao' ? <Award className="w-4 h-4" /> :
-                          atividade.tipo === 'compra' ? <Droplets className="w-4 h-4" /> :
-                          <TrendingUp className="w-4 h-4" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-200 truncate">{atividade.titulo}</p>
-                          <p className="text-xs text-slate-500">{atividade.empresa}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className={`text-xs font-bold ${
-                            atividade.tipo === 'evolucao' ? 'text-purple-400' : 'text-emerald-400'
-                          }`}>
-                            {atividade.valor}
-                          </p>
-                          <p className="text-[10px] text-slate-600 mt-0.5">{atividade.tempo}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <Link href="/marketplace" className="mt-6 w-full py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all border border-emerald-500/20 hover:border-emerald-500/40">
-                    Ganhar mais Folhas
-                  </Link>
-                </div>
-                
-                {/* Banner Conquista */}
-                <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4">
-                  <div className="text-3xl">🏆</div>
-                  <div>
-                    <h3 className="text-sm font-bold text-amber-400">Nível Lenda Desbloqueado!</h3>
-                    <p className="text-xs text-slate-300 mt-0.5">Sua dedicação está mudando o mundo.</p>
-                  </div>
-                </div>
-                
+              {/* Quadro de Medalhas (Reputação / SBTs) */}
+              <div className="xl:col-span-1">
+                <MedalBoard medals={mockMedals} />
               </div>
+
             </div>
           </>
         )}
