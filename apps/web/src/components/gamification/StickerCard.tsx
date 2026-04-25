@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Lock, Wind, Ruler } from 'lucide-react';
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 export interface NftSticker {
   id: string;
@@ -43,9 +44,17 @@ export function StickerCard({ sticker }: { sticker: NftSticker }) {
   };
 
   const isLenda = sticker.rarity === 'Lenda';
+  const router = useRouter();
+
+  const handleClick = () => {
+    if (sticker.isUnlocked) {
+      router.push(`/consumidor/album/rwa/${sticker.id}`);
+    }
+  };
 
   return (
     <motion.div
+      onClick={handleClick}
       style={{
         rotateX,
         rotateY,

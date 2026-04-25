@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export interface Medal {
   id: string;
@@ -24,12 +25,20 @@ export function MedalBadge({ medal }: { medal: Medal }) {
   };
 
   const style = tierStyles[medal.tier];
+  const router = useRouter();
+
+  const handleClick = () => {
+    if (medal.isUnlocked) {
+      router.push(`/consumidor/album/sbt/${medal.id}`);
+    }
+  };
 
   return (
     <div 
-      className="relative flex flex-col items-center group cursor-help"
+      className={`relative flex flex-col items-center group ${medal.isUnlocked ? 'cursor-pointer' : 'cursor-help'}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
     >
       <motion.div
         whileHover={{ scale: 1.1, rotate: medal.isUnlocked ? 5 : 0 }}
