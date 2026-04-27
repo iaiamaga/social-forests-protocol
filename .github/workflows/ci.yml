@@ -12,15 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.2.2
+      
       - name: Instalar Rust 1.91.0
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: 1.91.0
           targets: wasm32-unknown-unknown
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: '1.88'
-          targets: wasm32-unknown-unknown,wasm32v1-none
 
       - uses: actions/cache@v4.2.2
         with:
@@ -35,12 +32,14 @@ jobs:
       # ── Testes (host target — não precisam de flag --target) ──────────
       - name: Test rwa_vault
         run: cargo test --manifest-path contracts/rwa_vault/Cargo.toml -- --nocapture
+        
       - name: Test sbt_reputation
         run: cargo test --manifest-path contracts/sbt_reputation/Cargo.toml -- --nocapture
+        
       - name: Test hero_journey
         run: cargo test --manifest-path contracts/hero_journey/Cargo.toml -- --nocapture
 
-      # ── WASM: rwa_vault (SDK 22) → wasm32-unknown-unknown ────────────
+      # ── WASM: rwa_vault ────────────
       - name: Build rwa_vault WASM
         run: >
           cargo build
@@ -48,17 +47,18 @@ jobs:
           --release
           --manifest-path contracts/rwa_vault/Cargo.toml
 
-      # ── WASM: SDK 25 exige wasm32v1-none ─────────────────────────────
+      # ── WASM: sbt_reputation ─────────────────────────────
       - name: Build sbt_reputation WASM
         run: >
           cargo build
-          --target wasm32v1-none
+          --target wasm32-unknown-unknown
           --release
           --manifest-path contracts/sbt_reputation/Cargo.toml
+          
       - name: Build hero_journey WASM
         run: >
           cargo build
-          --target wasm32v1-none
+          --target wasm32-unknown-unknown
           --release
           --manifest-path contracts/hero_journey/Cargo.toml
 

@@ -15,10 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Instalar Rust 1.91.0
+        uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: '1.88'
-          targets: wasm32-unknown-unknown,wasm32v1-none
+          toolchain: 1.91.0
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo registry
         uses: actions/cache@v4.2.2
@@ -46,10 +47,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Instalar Rust 1.91.0
+        uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: '1.88'
-          targets: wasm32-unknown-unknown,wasm32v1-none
+          toolchain: 1.91.0
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo registry
         uses: actions/cache@v4.2.2
@@ -62,21 +64,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-wasm-
 
-      # rwa_vault usa SDK 22 → wasm32-unknown-unknown
       - name: Build rwa_vault (WASM)
         run: >
           cargo build --target wasm32-unknown-unknown --release
           --manifest-path contracts/rwa_vault/Cargo.toml
 
-      # SDK 25 exige wasm32v1-none
       - name: Build sbt_reputation (WASM)
         run: >
-          cargo build --target wasm32v1-none --release
+          cargo build --target wasm32-unknown-unknown --release
           --manifest-path contracts/sbt_reputation/Cargo.toml
 
       - name: Build hero_journey (WASM)
         run: >
-          cargo build --target wasm32v1-none --release
+          cargo build --target wasm32-unknown-unknown --release
           --manifest-path contracts/hero_journey/Cargo.toml
 
   audit:
@@ -85,9 +85,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Instalar Rust 1.91.0
+        uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: '1.88'
+          toolchain: 1.91.0
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --quiet
@@ -102,15 +103,12 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4.2.2
+      
       - name: Instalar Rust 1.91.0
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: 1.91.0
           targets: wasm32-unknown-unknown
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: '1.88'
 
       - name: Install Scout
         run: cargo install cargo-scout-audit
