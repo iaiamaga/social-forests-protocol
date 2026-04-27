@@ -7,9 +7,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype,
-    panic_with_error, symbol_short,
-    Address, Env, String,
+    contract, contracterror, contractevent, contractimpl, contracttype, panic_with_error, Address,
+    Env, String,
 };
 
 // ─────────────────────────────────────────────
@@ -40,17 +39,70 @@ pub enum DataKey {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum ContractError {
-    NotInitialized        = 1,
-    AlreadyInitialized    = 2,
-    NotAuthorized         = 3,
-    CompanyNotVerified    = 4,
-    InsufficientBalance   = 5,
-    ArithmeticOverflow    = 6,
-    SupplyCapExceeded     = 7,
-    ContractPaused        = 8,
-    BatchTooLarge         = 9,
-    InvalidAmount         = 10,
+    NotInitialized = 1,
+    AlreadyInitialized = 2,
+    NotAuthorized = 3,
+    CompanyNotVerified = 4,
+    InsufficientBalance = 5,
+    ArithmeticOverflow = 6,
+    SupplyCapExceeded = 7,
+    ContractPaused = 8,
+    BatchTooLarge = 9,
+    InvalidAmount = 10,
     InsufficientAllowance = 11,
+}
+
+// ─────────────────────────────────────────────
+// Estrutura de Eventos (Padrão SDK 25)
+// ─────────────────────────────────────────────
+
+#[contractevent]
+pub struct PausedEvent {}
+
+#[contractevent]
+pub struct UnpausedEvent {}
+
+#[contractevent]
+pub struct MintEvent {
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct BurnEvent {
+    #[topic]
+    pub from: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct ApproveEvent {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub spender: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct TransferEvent {
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct TransferFromEvent {
+    #[topic]
+    pub spender: Address,
+    #[topic]
+    pub from: Address,
+    #[topic]
+    pub to: Address,
+    pub amount: i128,
 }
 
 // ─────────────────────────────────────────────
@@ -141,7 +193,7 @@ impl MognoVault {
         let admin = get_admin(&env);
         admin.require_auth();
         env.storage().instance().set(&DataKey::Paused, &true);
-        env.events().publish((symbol_short!("paused"),), ()); // [T3]
+        PausedEvent {}.publish(&env); // [T3] NOVO PADRÃO
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
@@ -150,7 +202,7 @@ impl MognoVault {
         let admin = get_admin(&env);
         admin.require_auth();
         env.storage().instance().set(&DataKey::Paused, &false);
-        env.events().publish((symbol_short!("unpaused"),), ()); // [T3]
+        UnpausedEvent {}.publish(&env); // [T3] NOVO PADRÃO
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
@@ -183,9 +235,11 @@ impl MognoVault {
         set_balance(&env, &to, new_balance);
 
         // Persist total supply                                    [T5]
-        env.storage().instance().set(&DataKey::TotalSupply, &new_supply);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &new_supply);
 
-        env.events().publish((symbol_short!("mint"),), (to.clone(), amount)); // [T3]
+        MintEvent { to, amount }.publish(&env); // [T3] NOVO PADRÃO
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
@@ -212,9 +266,11 @@ impl MognoVault {
         let new_supply = current_supply
             .checked_sub(amount)
             .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow));
-        env.storage().instance().set(&DataKey::TotalSupply, &new_supply);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &new_supply);
 
-        env.events().publish((symbol_short!("burn"),), (from.clone(), amount)); // [T3]
+        BurnEvent { from, amount }.publish(&env); // [T3] NOVO PADRÃO
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
@@ -263,10 +319,14 @@ impl MognoVault {
         }
         from.require_auth();
         set_allowance(&env, &from, &spender, amount);
-        env.events().publish(
-            (symbol_short!("approve"),),
-            (from.clone(), spender.clone(), amount),
-        ); // [T3]
+
+        ApproveEvent {
+            from,
+            spender,
+            amount,
+        }
+        .publish(&env); // [T3] NOVO PADRÃO
+
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
@@ -300,19 +360,12 @@ impl MognoVault {
         set_balance(&env, &from, new_from);
         set_balance(&env, &to, new_to);
 
-        env.events()
-            .publish((symbol_short!("transfer"),), (from.clone(), to.clone(), amount)); // [T3]
+        TransferEvent { from, to, amount }.publish(&env); // [T3] NOVO PADRÃO
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
     /// Transfere `amount` de `from` para `to` usando allowance de `spender`
-    pub fn transfer_from(
-        env: Env,
-        spender: Address,
-        from: Address,
-        to: Address,
-        amount: i128,
-    ) {
+    pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         assert_not_paused(&env); // [T6]
         if amount <= 0 {
             panic_with_error!(env, ContractError::InvalidAmount);
@@ -344,10 +397,13 @@ impl MognoVault {
         set_balance(&env, &from, new_from);
         set_balance(&env, &to, new_to);
 
-        env.events().publish(
-            (symbol_short!("xfr_from"),),
-            (spender.clone(), from.clone(), to.clone(), amount),
-        ); // [T3]
+        TransferFromEvent {
+            spender,
+            from,
+            to,
+            amount,
+        }
+        .publish(&env); // [T3] NOVO PADRÃO
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 }
