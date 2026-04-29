@@ -1,14 +1,14 @@
 // ============================================================
 // Social Forest Protocol — RWA Vault Contract
-// Token: Social Forest Leaf (LEAF)
+// Token: Social Forest Leaf (LEAF) + B2B Community Yield
 // Padrão: SEP-41 (Stellar Token Interface)
 // Segurança: Certora Soroban Audit Guide Compliant
 // ============================================================
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, panic_with_error, Address,
-    Env, String,
+    contract, contracterror, contractevent, contractimpl, contracttype, panic_with_error, token,
+    Address, Env, String,
 };
 
 // ─────────────────────────────────────────────
@@ -29,6 +29,9 @@ pub enum DataKey {
     TotalSupply,
     Balance(Address),
     Allowance(Address, Address),
+    // Novas chaves para o Impacto B2B
+    CommunityFund,
+    YieldBps,
 }
 
 // ─────────────────────────────────────────────
@@ -50,6 +53,7 @@ pub enum ContractError {
     BatchTooLarge = 9,
     InvalidAmount = 10,
     InsufficientAllowance = 11,
+    CommunityFundNotSet = 12, // Erro novo para o Fundo de Mudas
 }
 
 // ─────────────────────────────────────────────
@@ -102,6 +106,14 @@ pub struct TransferFromEvent {
     pub from: Address,
     #[topic]
     pub to: Address,
+    pub amount: i128,
+}
+
+// NOVO EVENTO: Auditoria de Fomento Local (Vereda Verify)
+#[contractevent]
+pub struct CommunityYieldEvent {
+    #[topic]
+    pub from: Address,
     pub amount: i128,
 }
 
@@ -174,8 +186,6 @@ pub struct MognoVault;
 impl MognoVault {
     // ───── Inicialização ─────────────────────
 
-    /// Inicializa o contrato com um administrador.
-    /// Só pode ser chamada uma vez; panics com `AlreadyInitialized` se repetida.
     pub fn initialize(env: Env, admin: Address) {
         if env.storage().instance().has(&DataKey::Admin) {
             panic_with_error!(env, ContractError::AlreadyInitialized);
@@ -186,9 +196,102 @@ impl MognoVault {
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
+    // ───── Configuração de Impacto (Community Yield) ─────
+
+    /// Define a carteira que vai receber a verba das mudas e a percentagem (em basis points)
+    pub fn set_community_params(env: Env, fund_address: Address, bps: u32) {
+        let admin = get_admin(&env);
+        admin.require_auth();
+
+        // 10000 BPS = 100%
+        if bps > 10000 {
+            panic_with_error!(&env, ContractError::InvalidAmount);
+        }
+
+        env.storage()
+            .instance()
+            .set(&DataKey::CommunityFund, &fund_address);
+        env.storage().instance().set(&DataKey::YieldBps, &bps);
+    }
+
+    // ───── Investimento com Impacto B2B ──────────────────
+
+    /// A empresa deposita um token de pagamento (ex: USDC) e recebe LEAF.
+    /// O contrato retém automaticamente a fração para o fundo local de mudas.
+    pub fn invest_with_impact(env: Env, investor: Address, payment_token: Address, amount: i128) {
+        assert_not_paused(&env);
+        if amount <= 0 {
+            panic_with_error!(env, ContractError::InvalidAmount);
+        }
+        investor.require_auth();
+
+        // Resgatar os parâmetros do fundo
+        let fund_address: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::CommunityFund)
+            .unwrap_or_else(|| panic_with_error!(&env, ContractError::CommunityFundNotSet));
+        let bps: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::YieldBps)
+            .unwrap_or(0);
+
+        // Matemática do Split: Separar o valor das mudas do investimento principal
+        let community_share = (amount * (bps as i128)) / 10000;
+        let investment_share = amount - community_share;
+
+        let client = token::Client::new(&env, &payment_token);
+
+        // 1. Enviar a taxa de fomento diretamente para o Fundo (Mudas para o Ceará)
+        if community_share > 0 {
+            client.transfer(&investor, &fund_address, &community_share);
+            CommunityYieldEvent {
+                from: investor.clone(),
+                amount: community_share,
+            }
+            .publish(&env);
+        }
+
+        // 2. Reter o investimento principal no Vault do Florestas.Social
+        if investment_share > 0 {
+            client.transfer(
+                &investor,
+                &env.current_contract_address(),
+                &investment_share,
+            );
+        }
+
+        // 3. Mintar o Token LEAF (Mogno) para o investidor, equivalente à sua fatia
+        let current_supply = get_total_supply(&env);
+        let new_supply = current_supply
+            .checked_add(investment_share)
+            .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow));
+
+        if new_supply > MAX_SUPPLY {
+            panic_with_error!(env, ContractError::SupplyCapExceeded);
+        }
+
+        let current_balance = get_balance(&env, &investor);
+        let new_balance = current_balance
+            .checked_add(investment_share)
+            .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow));
+
+        set_balance(&env, &investor, new_balance);
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalSupply, &new_supply);
+
+        MintEvent {
+            to: investor,
+            amount: investment_share,
+        }
+        .publish(&env);
+        env.storage().instance().extend_ttl(17_280, 518_400);
+    }
+
     // ───── Emergency Pause                    [T6] ─────────
 
-    /// Pausa o contrato. Apenas o admin pode chamar.
     pub fn pause(env: Env) {
         let admin = get_admin(&env);
         admin.require_auth();
@@ -197,7 +300,6 @@ impl MognoVault {
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
-    /// Retoma o contrato. Apenas o admin pode chamar.
     pub fn unpause(env: Env) {
         let admin = get_admin(&env);
         admin.require_auth();
@@ -208,8 +310,6 @@ impl MognoVault {
 
     // ───── Admin Functions ───────────────────
 
-    /// Mintagem restrita ao admin — Oráculo de Proof of Flourishing.
-    /// Valida: pausa, amount > 0, auth, supply cap, overflow.    [T4-T6]
     pub fn admin_mint(env: Env, to: Address, amount: i128) {
         assert_not_paused(&env); // [T6]
         if amount <= 0 {
@@ -218,7 +318,6 @@ impl MognoVault {
         let admin = get_admin(&env);
         admin.require_auth();
 
-        // Supply cap check                                        [T5]
         let current_supply = get_total_supply(&env);
         let new_supply = current_supply
             .checked_add(amount)
@@ -227,14 +326,12 @@ impl MognoVault {
             panic_with_error!(env, ContractError::SupplyCapExceeded); // [T5]
         }
 
-        // Update balance                                          [T4]
         let current = get_balance(&env, &to);
         let new_balance = current
             .checked_add(amount)
             .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow));
         set_balance(&env, &to, new_balance);
 
-        // Persist total supply                                    [T5]
         env.storage()
             .instance()
             .set(&DataKey::TotalSupply, &new_supply);
@@ -243,7 +340,6 @@ impl MognoVault {
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
-    /// Burn restrito ao admin — para resgates e expiração de ativos RWA.
     pub fn admin_burn(env: Env, from: Address, amount: i128) {
         assert_not_paused(&env); // [T6]
         if amount <= 0 {
@@ -261,7 +357,6 @@ impl MognoVault {
             .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow)); // [T4]
         set_balance(&env, &from, new_balance);
 
-        // Update total supply                                     [T5]
         let current_supply = get_total_supply(&env);
         let new_supply = current_supply
             .checked_sub(amount)
@@ -276,36 +371,30 @@ impl MognoVault {
 
     // ───── SEP-41: Token Metadata ─────────────
 
-    /// Retorna o número de casas decimais do token (7, padrão Stellar)
     pub fn decimals(_env: Env) -> u32 {
         7
     }
 
-    /// Nome completo do token
     pub fn name(env: Env) -> String {
         String::from_str(&env, "Social Forest Leaf")
     }
 
-    /// Símbolo do token
     pub fn symbol(env: Env) -> String {
         String::from_str(&env, "LEAF")
     }
 
     // ───── SEP-41: Balance & Supply ──────────
 
-    /// Retorna o saldo do endereço `id`
     pub fn balance(env: Env, id: Address) -> i128 {
         get_balance(&env, &id)
     }
 
-    /// Retorna o supply total em circulação       [T5]
     pub fn total_supply(env: Env) -> i128 {
         get_total_supply(&env)
     }
 
     // ───── SEP-41: Allowance & Transfer ──────
 
-    /// Aprova `spender` a gastar até `amount` tokens em nome do chamador
     pub fn approve(
         env: Env,
         from: Address,
@@ -330,12 +419,10 @@ impl MognoVault {
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
-    /// Retorna o allowance atual de `spender` para gastar tokens de `from`
     pub fn allowance(env: Env, from: Address, spender: Address) -> i128 {
         get_allowance(&env, &from, &spender)
     }
 
-    /// Transfere `amount` tokens do chamador para `to`
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
         assert_not_paused(&env); // [T6]
         if amount <= 0 {
@@ -348,7 +435,6 @@ impl MognoVault {
             panic_with_error!(env, ContractError::InsufficientBalance);
         }
 
-        // Checked arithmetic                                       [T4]
         let new_from = from_balance
             .checked_sub(amount)
             .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow));
@@ -364,7 +450,6 @@ impl MognoVault {
         env.storage().instance().extend_ttl(17_280, 518_400); // [T8]
     }
 
-    /// Transfere `amount` de `from` para `to` usando allowance de `spender`
     pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {
         assert_not_paused(&env); // [T6]
         if amount <= 0 {
@@ -381,7 +466,6 @@ impl MognoVault {
             panic_with_error!(env, ContractError::InsufficientBalance);
         }
 
-        // Checked arithmetic                                       [T4]
         let new_allowance = cur_allowance
             .checked_sub(amount)
             .unwrap_or_else(|| panic_with_error!(&env, ContractError::ArithmeticOverflow));
@@ -418,7 +502,6 @@ mod tests {
     use soroban_sdk::testutils::Address as _;
     use soroban_sdk::Env;
 
-    /// Configura o ambiente de teste com mock_all_auths
     fn setup() -> (Env, MognoVaultClient<'static>, Address, Address) {
         let env = Env::default();
         env.mock_all_auths();
@@ -433,8 +516,6 @@ mod tests {
 
         (env, client, admin, user)
     }
-
-    // ─── Testes originais (preservados) ───────────────────────
 
     #[test]
     fn test_admin_mint_increases_balance() {
@@ -500,9 +581,6 @@ mod tests {
         client.initialize(&admin);
     }
 
-    // ─── Novos testes de segurança ────────────────────────────
-
-    /// O admin autorizado pode mintar (sanidade)
     #[test]
     fn test_admin_mint_authorized() {
         let (_env, client, _admin, user) = setup();
@@ -510,36 +588,28 @@ mod tests {
         assert_eq!(client.balance(&user), 10_000_000i128);
     }
 
-    /// Sem auth, admin_mint deve falhar
     #[test]
     #[should_panic]
     fn test_admin_mint_unauthorized() {
-        // Env SEM mock_all_auths — require_auth() vai rejeitar
         let env = Env::default();
         let contract_id = env.register(MognoVault, ());
         let client = MognoVaultClient::new(&env, &contract_id);
         let admin = Address::generate(&env);
         let user = Address::generate(&env);
-        // initialize não tem require_auth — funciona sem mock
         client.initialize(&admin);
-        // admin_mint chama admin.require_auth() → pânico sem mock
         client.admin_mint(&user, &100_000_000i128);
     }
 
-    /// Mintagem além do MAX_SUPPLY deve falhar com SupplyCapExceeded
     #[test]
     #[should_panic]
     fn test_supply_cap_exceeded() {
         let (_env, client, _admin, user) = setup();
-        // MAX_SUPPLY = 100_000_000 * 10_000_000 = 1_000_000_000_000_000
         let half_max: i128 = 50_000_000 * 10_000_000;
         client.admin_mint(&user, &half_max);
         client.admin_mint(&user, &half_max);
-        // Supply agora está no limite; qualquer mint adicional falha
         client.admin_mint(&user, &1i128);
     }
 
-    /// Transfer feliz garante conservação de tokens
     #[test]
     fn test_transfer_happy_path() {
         let (env, client, _admin, sender) = setup();
@@ -550,7 +620,6 @@ mod tests {
         assert_eq!(client.balance(&receiver), 40_000_000i128);
     }
 
-    /// Transfer com saldo insuficiente deve falhar
     #[test]
     #[should_panic]
     fn test_transfer_insufficient_balance() {
@@ -560,7 +629,6 @@ mod tests {
         client.transfer(&sender, &receiver, &9_000_000i128);
     }
 
-    /// Após consumir todo o allowance, transfer_from adicional deve falhar
     #[test]
     #[should_panic]
     fn test_allowance_exhausted() {
@@ -569,11 +637,10 @@ mod tests {
         let receiver = Address::generate(&env);
         client.admin_mint(&owner, &100_000_000i128);
         client.approve(&owner, &spender, &30_000_000i128, &1_000_000u32);
-        client.transfer_from(&spender, &owner, &receiver, &30_000_000i128); // usa tudo
-        client.transfer_from(&spender, &owner, &receiver, &1_000_000i128); // deve falhar
+        client.transfer_from(&spender, &owner, &receiver, &30_000_000i128);
+        client.transfer_from(&spender, &owner, &receiver, &1_000_000i128);
     }
 
-    /// Contrato pausado deve rejeitar transferências
     #[test]
     #[should_panic]
     fn test_pause_blocks_transfers() {
@@ -581,10 +648,9 @@ mod tests {
         let receiver = Address::generate(&env);
         client.admin_mint(&sender, &100_000_000i128);
         client.pause();
-        client.transfer(&sender, &receiver, &50_000_000i128); // deve falhar
+        client.transfer(&sender, &receiver, &50_000_000i128);
     }
 
-    /// Após unpause, transferências devem voltar a funcionar
     #[test]
     fn test_unpause_restores_transfers() {
         let (env, client, _admin, sender) = setup();
@@ -596,7 +662,6 @@ mod tests {
         assert_eq!(client.balance(&receiver), 50_000_000i128);
     }
 
-    /// total_supply reflete mints e burns corretamente
     #[test]
     fn test_total_supply_tracking() {
         let (_env, client, _admin, user) = setup();
