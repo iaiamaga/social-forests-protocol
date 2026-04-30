@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import { signTransaction, setAllowed } from "@stellar/freighter-api";
-import { NETWORK } from '@/lib/soroban/config';
+import { rpcServer, NETWORK } from '@/lib/soroban/config';
 
 export function useHeroState(address: string | null) {
   const [isForging, setIsForging] = useState(false);
@@ -12,37 +13,81 @@ export function useHeroState(address: string | null) {
     setIsForging(true);
 
     try {
-      // 1. Acorda a carteira
+      // 1. Permissão de conexão com a carteira
       await setAllowed();
 
-      // 2. Pacote de dados para assinatura (Simulação de RWA)
-      const dummyXdr = "AAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAAQAAAAAAAAAA";
+      // IDs dos contratos (Token LEAF e Protocolo Florestas)
+      const TOKEN_ID = 'CBBECVILQYMFY3FQ3EEKQYGY3AIW2MVVQLSDXWSYPLITZXCF4SPHZPSL';
+      const PROTOCOL_ID = 'CBNPPKTNIO3GRMDMSFK2YLBDBMYM3CPG6KY7XER6KBYD56UV3W4WH72X';
 
-      // 3. ABRE A CARTEIRA NA TELA
-      const result = await signTransaction(dummyXdr, {
+      // ==============================================================
+      // PASSO 1: O PAGAMENTO (Transferência de 100 LEAF para o protocolo)
+      // ==============================================================
+      const tokenContract = new StellarSdk.Contract(TOKEN_ID);
+      const paymentOp = tokenContract.call('transfer',
+        StellarSdk.nativeToScVal(address, { type: 'address' }),
+        StellarSdk.nativeToScVal(PROTOCOL_ID, { type: 'address' }),
+        StellarSdk.nativeToScVal('1000000000', { type: 'i128' }) // <-- CORREÇÃO: 9 zeros para 100 LEAF exatos
+      );
+
+      let source = await rpcServer.getAccount(address);
+      let tx1 = new StellarSdk.TransactionBuilder(source, {
+        fee: '10000',
         networkPassphrase: NETWORK.networkPassphrase,
-        address: address
-      });
+      }).addOperation(paymentOp).setTimeout(60).build();
 
-      // 4. BYPASS: Se você assinou no Freighter, ignoramos o erro de saldo e confirmamos o sucesso
-      if (result) {
-        alert("🌳 SUCESSO OPERACIONAL!\n\nNFT RWA Plantador forjado com sucesso no front-end.");
-        // Aqui você pode redirecionar o usuário ou atualizar a árvore na tela
-        return { success: true };
+      let preparedTx1 = await rpcServer.prepareTransaction(tx1);
+      let result1 = await signTransaction(preparedTx1.toXDR(), { networkPassphrase: NETWORK.networkPassphrase, address });
+      let signedXdr1 = typeof result1 === 'string' ? result1 : (result1 as any).signedTxXdr;
+
+      if (!signedXdr1) throw new Error("Assinatura do pagamento cancelada.");
+
+      let transaction1 = StellarSdk.TransactionBuilder.fromXDR(signedXdr1, NETWORK.networkPassphrase);
+      let sendResult1 = await rpcServer.sendTransaction(transaction1);
+
+      if (sendResult1.status !== 'PENDING') {
+        throw new Error("Falha no envio do pagamento.");
       }
 
-    } catch (e) {
-      console.error("Operação de interface finalizada.");
+      // Pausa estratégica de 4 segundos para a rede validar o Bloco 
+      // e evitar conflito de Sequence Number na carteira
+      await new Promise(resolve => setTimeout(resolve, 4000));
+
+      // ==============================================================
+      // PASSO 2: A FORJA (Registro do RWA do Mogno-Africano)
+      // ==============================================================
+      const protocolContract = new StellarSdk.Contract(PROTOCOL_ID);
+      const forgeOp = protocolContract.call('forge_common_rwa',
+        StellarSdk.nativeToScVal(address, { type: 'address' })
+      );
+
+      // BEM IMPORTANTE: Pegamos a conta novamente para atualizar o Sequence Number!
+      source = await rpcServer.getAccount(address);
+      let tx2 = new StellarSdk.TransactionBuilder(source, {
+        fee: '10000',
+        networkPassphrase: NETWORK.networkPassphrase,
+      }).addOperation(forgeOp).setTimeout(60).build();
+
+      let preparedTx2 = await rpcServer.prepareTransaction(tx2);
+      let result2 = await signTransaction(preparedTx2.toXDR(), { networkPassphrase: NETWORK.networkPassphrase, address });
+      let signedXdr2 = typeof result2 === 'string' ? result2 : (result2 as any).signedTxXdr;
+
+      if (!signedXdr2) throw new Error("Assinatura da forja cancelada.");
+
+      let transaction2 = StellarSdk.TransactionBuilder.fromXDR(signedXdr2, NETWORK.networkPassphrase);
+      let sendResult2 = await rpcServer.sendTransaction(transaction2);
+
+      if (sendResult2.status === 'PENDING') {
+        alert("🌳 SUCESSO TOTAL!\n100 LEAFs consumidos e a sua primeira muda de Mogno foi registrada na blockchain.");
+      }
+
+    } catch (e: any) {
+      console.error("Erro no fluxo de forja:", e);
+      alert("A operação falhou: " + (e.message || "Verifique o console."));
     } finally {
       setIsForging(false);
     }
   }, [address]);
 
-  // Mantemos o saldo visual em 1000 para o botão nunca travar
-  return {
-    commonLeaves: 1000,
-    progressPercent: 25,
-    isForging,
-    forgeTree
-  };
+  return { isForging, forgeTree };
 }
