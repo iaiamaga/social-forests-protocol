@@ -5,9 +5,6 @@ use soroban_sdk::{
     panic_with_error,
 };
 
-// ==========================================
-// ERROS (Arquitetura Profissional)
-// ==========================================
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
@@ -18,9 +15,6 @@ pub enum SbtError {
     NotInitialized = 4,
 }
 
-// ==========================================
-// EVENTOS
-// ==========================================
 #[contractevent(topics = ["sbt", "mint"], data_format = "single-value")]
 pub struct EventSbtMinted {
     pub user: Address,
@@ -38,9 +32,6 @@ pub struct EventLevelUp {
     pub level: u32,
 }
 
-// ==========================================
-// ESTRUTURAS
-// ==========================================
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct SbtRecord {
@@ -80,6 +71,8 @@ impl ReputationSbt {
             level: 1,
         };
         env.storage().persistent().set(&key, &record);
+        // FIX: Impede que o SBT expire (TTL)
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
 
         EventSbtMinted { user }.publish(&env);
     }
@@ -101,7 +94,9 @@ impl ReputationSbt {
 
         sbt.xp += amount;
 
-        let new_level = (sbt.xp / 500) + 1;
+        // FIX: Cap de nível no 50 conforme a v14.1
+        let new_level = ((sbt.xp / 500) + 1).min(50);
+
         if new_level > sbt.level {
             sbt.level = new_level;
             EventLevelUp {
@@ -112,6 +107,9 @@ impl ReputationSbt {
         }
 
         env.storage().persistent().set(&key, &sbt);
+        // FIX: Renovação do tempo de vida dos dados
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
+
         EventXpAdded { user, amount }.publish(&env);
     }
 

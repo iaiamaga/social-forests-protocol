@@ -5,10 +5,6 @@ use soroban_sdk::{
     panic_with_error, vec,
 };
 
-// ==========================================
-// EVENTOS (Padrão Ouro v25+)
-// ==========================================
-
 #[contractevent(topics = ["company", "reg"], data_format = "single-value")]
 pub struct EventCompanyRegistered {
     pub company: Address,
@@ -30,10 +26,6 @@ pub struct EventSbtRevoked {
     pub company: Address,
     pub reason: String,
 }
-
-// ==========================================
-// ESTRUTURAS
-// ==========================================
 
 #[contracttype]
 #[derive(Clone, Debug)]
@@ -82,7 +74,7 @@ impl CompanySbt {
         company.require_auth();
         let key = DataKey::Empresa(company.clone());
         if env.storage().persistent().has(&key) {
-            panic!("Já registada");
+            panic_with_error!(&env, SbtEmpresaError::AlreadyInitialized);
         }
 
         let record = SbtEmpresaRecord {
@@ -96,8 +88,8 @@ impl CompanySbt {
         };
 
         env.storage().persistent().set(&key, &record);
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
 
-        // PUBLICAR EVENTO NOVO
         EventCompanyRegistered { company }.publish(&env);
     }
 
@@ -110,8 +102,8 @@ impl CompanySbt {
 
         record.verified_by_vereda = true;
         env.storage().persistent().set(&key, &record);
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
 
-        // PUBLICAR EVENTO NOVO
         EventCompanyVerified { company }.publish(&env);
     }
 
@@ -129,8 +121,8 @@ impl CompanySbt {
         record.co2e_tonnes = co2;
         record.native_species_count = species;
         env.storage().persistent().set(&key, &record);
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
 
-        // PUBLICAR EVENTO NOVO
         EventMetricsUpdated { company, co2 }.publish(&env);
     }
 
@@ -144,12 +136,64 @@ impl CompanySbt {
         record.is_revoked = true;
         record.verified_by_vereda = false;
         env.storage().persistent().set(&key, &record);
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
 
-        // PUBLICAR EVENTO NOVO
         EventSbtRevoked { company, reason }.publish(&env);
     }
 
     pub fn get_empresa_sbt(env: Env, company: Address) -> Option<SbtEmpresaRecord> {
         env.storage().persistent().get(&DataKey::Empresa(company))
+    }
+}
+
+// ============================================================
+// TESTES INTEGRADOS (SEM ERRO DE FICHEIRO)
+// ============================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{Env, testutils::Address as _};
+
+    fn setup() -> (Env, CompanySbtClient<'static>, Address, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(CompanySbt, ());
+        let client = CompanySbtClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let oracle = Address::generate(&env);
+        client.initialize(&admin, &oracle);
+        (env, client, admin, oracle)
+    }
+
+    #[test]
+    fn test_register_and_get_company() {
+        let (env, client, _, _) = setup();
+        let company = Address::generate(&env);
+        client.register_company(&company);
+        let sbt = client.get_empresa_sbt(&company).unwrap();
+        assert_eq!(sbt.verified_by_vereda, false);
+    }
+
+    #[test]
+    fn test_oracle_verification_and_metrics() {
+        let (env, client, _, _oracle) = setup();
+        let company = Address::generate(&env);
+        client.register_company(&company);
+        client.verify_company(&company);
+        client.update_environmental_metrics(&company, &100, &50);
+        let sbt = client.get_empresa_sbt(&company).unwrap();
+        assert_eq!(sbt.verified_by_vereda, true);
+        assert_eq!(sbt.co2e_tonnes, 100);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_revoked_sbt_cannot_update_metrics() {
+        let (env, client, _, _) = setup();
+        let company = Address::generate(&env);
+        client.register_company(&company);
+        let reason = soroban_sdk::String::from_str(&env, "Erro Juridico");
+        client.revoke_sbt(&company, &reason);
+        client.update_environmental_metrics(&company, &50, &10);
     }
 }
