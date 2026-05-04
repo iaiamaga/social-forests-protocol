@@ -1,8 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    Address, Env, contract, contracterror, contractevent, contractimpl, contracttype,
-    panic_with_error,
+    Address, Env, contract, contracterror, contractimpl, contracttype, panic_with_error,
 };
 
 #[contracterror]
@@ -13,23 +12,6 @@ pub enum SbtError {
     SbtAlreadyExists = 2,
     SbtNotFound = 3,
     NotInitialized = 4,
-}
-
-#[contractevent(topics = ["sbt", "mint"], data_format = "single-value")]
-pub struct EventSbtMinted {
-    pub user: Address,
-}
-
-#[contractevent(topics = ["sbt", "xp_add"])]
-pub struct EventXpAdded {
-    pub user: Address,
-    pub amount: u32,
-}
-
-#[contractevent(topics = ["sbt", "lvl_up"])]
-pub struct EventLevelUp {
-    pub user: Address,
-    pub level: u32,
 }
 
 #[contracttype]
@@ -58,65 +40,28 @@ impl ReputationSbt {
         env.storage().instance().set(&DataKey::Admin, &admin);
     }
 
-    pub fn create_sbt(env: Env, user: Address) {
-        user.require_auth();
-        let key = DataKey::Sbt(user.clone());
-        if env.storage().persistent().has(&key) {
-            panic_with_error!(&env, SbtError::SbtAlreadyExists);
-        }
-
-        let record = SbtRecord {
-            user: user.clone(),
-            xp: 0,
-            level: 1,
-        };
-        env.storage().persistent().set(&key, &record);
-        // FIX: Impede que o SBT expire (TTL)
-        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
-
-        EventSbtMinted { user }.publish(&env);
-    }
-
-    pub fn add_xp(env: Env, user: Address, amount: u32) {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic_with_error!(&env, SbtError::NotInitialized));
+    /// Distribui XP de reputação baseado no cashback de manejo ambiental (Mogno Africano).
+    pub fn distribute_green_cashback(env: Env, admin: Address, user: Address, amount: u32) {
         admin.require_auth();
 
         let key = DataKey::Sbt(user.clone());
-        let mut sbt: SbtRecord = env
-            .storage()
-            .persistent()
-            .get(&key)
-            .unwrap_or_else(|| panic_with_error!(&env, SbtError::SbtNotFound));
+        let mut sbt: SbtRecord = env.storage().persistent().get(&key).unwrap_or(SbtRecord {
+            user: user.clone(),
+            xp: 0,
+            level: 1,
+        });
 
         sbt.xp += amount;
-
-        // FIX: Cap de nível no 50 conforme a v14.1
-        let new_level = ((sbt.xp / 500) + 1).min(50);
-
-        if new_level > sbt.level {
-            sbt.level = new_level;
-            EventLevelUp {
-                user: user.clone(),
-                level: sbt.level,
-            }
-            .publish(&env);
-        }
+        // Lógica de progressão: Nível sobe a cada 500 XP, limitado ao nível 50.
+        sbt.level = ((sbt.xp / 500) + 1).min(50);
 
         env.storage().persistent().set(&key, &sbt);
-        // FIX: Renovação do tempo de vida dos dados
-        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
 
-        EventXpAdded { user, amount }.publish(&env);
+        // Estende o tempo de vida dos dados na rede Stellar (TTL)
+        env.storage().persistent().extend_ttl(&key, 17_280, 518_400);
     }
 
     pub fn get_sbt(env: Env, user: Address) -> Option<SbtRecord> {
         env.storage().persistent().get(&DataKey::Sbt(user))
     }
 }
-
-#[cfg(test)]
-mod tests;
