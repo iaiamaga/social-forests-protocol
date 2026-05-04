@@ -1,53 +1,25 @@
-// apps/web/src/hooks/useFreighter.ts
-import { useState, useEffect } from 'react';
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
 import * as freighter from '@stellar/freighter-api';
+
+interface FreighterResponse {
+    address?: string;
+    error?: string;
+    isConnected?: boolean;
+    isAllowed?: boolean;
+}
 
 export function useFreighter() {
     const [publicKey, setPublicKey] = useState<string | null>(null);
     const [hasFreighter, setHasFreighter] = useState<boolean>(false);
 
-    useEffect(() => {
-        const checkFreighter = async () => {
-            try {
-                // 1. Verifica se a extensão da Freighter está instalada
-                const connResponse = await freighter.isConnected();
-                // Garante a leitura correta independente da versão da lib
-                const isConn = typeof connResponse === 'object' ? connResponse.isConnected : connResponse;
-                setHasFreighter(isConn);
-
-                if (isConn) {
-                    // 2. Verifica se a aplicação já tem permissão do usuário
-                    const allowedResponse = await freighter.isAllowed();
-                    const isUserAllowed = typeof allowedResponse === 'object' ? allowedResponse.isAllowed : allowedResponse;
-
-                    if (isUserAllowed) {
-                        // 3. Se já tiver permissão, pega a chave pública silenciosamente
-                        const accessResponse = await freighter.requestAccess();
-                        const pubKey = typeof accessResponse === 'object' && accessResponse !== null && 'address' in accessResponse
-                            ? (accessResponse as any).address
-                            : accessResponse;
-
-                        if (typeof pubKey === 'string') {
-                            setPublicKey(pubKey);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Erro na verificação da Freighter", e);
-            }
-        };
-        checkFreighter();
-    }, []);
-
-    const connect = async () => {
+    const connect = useCallback(async () => {
         try {
-            // O requestAccess abre o popup se o usuário ainda não deu permissão.
-            // Se ele já deu permissão, simplesmente retorna a chave.
-            const accessResponse = await freighter.requestAccess();
-
-            const pubKey = typeof accessResponse === 'object' && accessResponse !== null && 'address' in accessResponse
-                ? (accessResponse as any).address
-                : accessResponse;
+            const accessResponse = (await freighter.requestAccess()) as FreighterResponse;
+            const pubKey = typeof accessResponse === 'object' && accessResponse !== null
+                ? accessResponse.address
+                : (accessResponse as unknown as string);
 
             if (typeof pubKey === 'string') {
                 setPublicKey(pubKey);
@@ -58,7 +30,36 @@ export function useFreighter() {
             console.error("Erro ao conectar carteira:", error);
             return null;
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const checkFreighter = async () => {
+            try {
+                const connResponse = (await freighter.isConnected()) as FreighterResponse;
+                const isConn = typeof connResponse === 'object' ? !!connResponse.isConnected : !!connResponse;
+                setHasFreighter(isConn);
+
+                if (isConn) {
+                    const allowedResponse = (await freighter.isAllowed()) as FreighterResponse;
+                    const isUserAllowed = typeof allowedResponse === 'object' ? !!allowedResponse.isAllowed : !!allowedResponse;
+
+                    if (isUserAllowed) {
+                        const accessResponse = (await freighter.requestAccess()) as FreighterResponse;
+                        const pubKey = typeof accessResponse === 'object' && accessResponse !== null
+                            ? accessResponse.address
+                            : (accessResponse as unknown as string);
+
+                        if (typeof pubKey === 'string') {
+                            setPublicKey(pubKey);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Erro na verificação da Freighter:", e);
+            }
+        };
+        void checkFreighter();
+    }, []);
 
     return { publicKey, hasFreighter, connect };
 }

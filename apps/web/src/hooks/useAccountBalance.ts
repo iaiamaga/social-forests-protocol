@@ -2,79 +2,72 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as StellarSdk from '@stellar/stellar-sdk';
-import {
-  horizonServer,
-  rpcServer,
-  CONTRACT_IDS,
-  NETWORK
-} from '@/lib/soroban/config';
+import { FLORESTAS_CONFIG } from '@/lib/soroban/config';
 
-export function useAccountBalance(address: string | null) {
-  const [xlmBalance, setXlmBalance] = useState('0.00');
-  const [leafBalance, setLeafBalance] = useState('0.00');
+const server = new StellarSdk.rpc.Server(FLORESTAS_CONFIG.rpcUrl);
+
+interface AccountBalances {
+  asset_type: string;
+  balance: string;
+}
+
+interface StellarAccountResponse {
+  _raw: {
+    balances: AccountBalances[];
+  };
+}
+
+export function useAccountBalance(publicKey: string | null) {
+  const [leafBalance, setLeafBalance] = useState<string>("0.00");
+  const [xlmBalance, setXlmBalance] = useState<string>("0.00");
   const [isLoading, setIsLoading] = useState(false);
 
-  // ---------------------------------------------------------
-  // 🔄 FUNÇÃO DE BUSCA (XLM e LEAF)
-  // ---------------------------------------------------------
   const fetchBalance = useCallback(async () => {
-    if (!address || !CONTRACT_IDS.leaf_token) return;
-
-    setIsLoading(true);
+    if (!publicKey) return;
 
     try {
-      // 🔵 1. BUSCAR SALDO DE XLM (Via Horizon)
-      const account = await horizonServer.loadAccount(address);
-      const native = account.balances.find((b: any) => b.asset_type === 'native');
-      setXlmBalance(native ? parseFloat(native.balance).toFixed(2) : '0.00');
+      setIsLoading(true);
+      const contractId = FLORESTAS_CONFIG.contracts.leafToken;
+      const contract = new StellarSdk.Contract(contractId);
 
-      // 🟢 2. BUSCAR SALDO DE LEAF (Simulação Soroban)
-      const contract = new StellarSdk.Contract(CONTRACT_IDS.leaf_token);
-      const addressVal = StellarSdk.nativeToScVal(address, { type: 'address' });
+      const accountData = (await server.getAccount(publicKey)) as unknown as StellarAccountResponse;
 
-      const tx = new StellarSdk.TransactionBuilder(
-        new StellarSdk.Account(address, "0"),
-        { fee: '100', networkPassphrase: NETWORK.networkPassphrase }
-      )
-        .addOperation(contract.call('balance', addressVal))
+      /**
+       * CORREÇÃO: Removido 'any'. 
+       * Convertemos para 'unknown' e depois para o tipo 'Account' do SDK.
+       */
+      const tx = new StellarSdk.TransactionBuilder(accountData as unknown as StellarSdk.Account, {
+        fee: '100',
+        networkPassphrase: StellarSdk.Networks.TESTNET
+      })
+        .addOperation(contract.call('balance', new StellarSdk.Address(publicKey).toScVal()))
         .setTimeout(30)
         .build();
 
-      const result = await rpcServer.simulateTransaction(tx);
-
-      if (StellarSdk.rpc.Api.isSimulationSuccess(result) && result.result) {
-        const raw = StellarSdk.scValToNative(result.result.retval);
-
-        // Converte o valor "bruto" da rede para o formato decimal amigável
-        const cleanValue = typeof raw === 'string' ? raw.replace(/[^\d]/g, '') : raw;
-        const mathBalance = Number(cleanValue) / 10_000_000;
-
-        setLeafBalance(mathBalance.toFixed(2));
+      const response = await server.simulateTransaction(tx);
+      if (StellarSdk.rpc.Api.isSimulationSuccess(response) && response.result) {
+        const rawLeaf = StellarSdk.scValToNative(response.result.retval);
+        setLeafBalance((Number(rawLeaf) / 10_000_000).toFixed(2));
       }
 
-    } catch (err) {
-      // Silencioso para não poluir a tela com erros de rede instável
-      console.warn("Rede Stellar ocupada...");
+      if (accountData?._raw?.balances) {
+        const native = accountData._raw.balances.find(b => b.asset_type === 'native');
+        if (native) setXlmBalance(Number(native.balance).toFixed(2));
+      }
+
+    } catch (e) {
+      console.error("Erro ao sincronizar saldos:", e);
     } finally {
       setIsLoading(false);
     }
-  }, [address]);
+  }, [publicKey]);
 
-  // ---------------------------------------------------------
-  // 🕒 CONTROLE DE ATUALIZAÇÃO (A cada 10 segundos)
-  // ---------------------------------------------------------
   useEffect(() => {
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
-    return () => clearInterval(interval);
+    const timer = setTimeout(() => {
+      fetchBalance();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchBalance]);
 
-  // ---------------------------------------------------------
-  // 🎁 RETORNO PARA O SITE
-  // ---------------------------------------------------------
-  return {
-    xlmBalance,
-    leafBalance, // Se quiser "forçar" 1000 para teste, mude para: '1000.00'
-    isLoading
-  };
+  return { leafBalance, xlmBalance, isLoading, refresh: fetchBalance };
 }

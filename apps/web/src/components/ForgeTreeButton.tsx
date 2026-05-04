@@ -12,39 +12,49 @@ export default function ForgeTreeButton({ userPublicKey }: { userPublicKey: stri
         setLoading(true);
         setError(null);
         setHash(null);
+
         try {
             const txHash = await forgeTreeTransaction(userPublicKey);
             setHash(txHash);
-        } catch (err: any) {
-            setError(err.message || 'Erro ao forjar árvore.');
+        } catch (err: unknown) {
+            /** 
+             * CORREÇÃO: Substituímos 'any' por uma verificação de tipo.
+             * Isso garante que o erro seja tratado com segurança.
+             */
+            const errorMessage = err instanceof Error ? err.message : 'Erro ao forjar árvore.';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-            <h3 className="text-lg font-bold mb-2">Transformar Estoque em Ativo</h3>
-            <p className="text-sm text-neutral-400 mb-6">
-                Forje um NFT que representa um lastro real de Mogno Africano. Custo: 100 LEAF.
+        <div className="bg-neutral-900 border border-neutral-800 rounded-[32px] p-8 shadow-2xl">
+            <h3 className="text-xl font-black text-white mb-2 uppercase italic">
+                Transformar Estoque em Ativo
+            </h3>
+            <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
+                Forje um dNFT que representa um lastro real de Mogno Africano.
+                Este processo consome **100 LEAF**.
             </p>
-            
-            <button 
-                onClick={handleForge} 
+
+            <button
+                onClick={handleForge}
                 disabled={loading}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-lg transition-colors flex justify-center items-center"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-black py-4 px-6 rounded-2xl transition-all flex justify-center items-center uppercase tracking-widest"
             >
                 {loading ? 'Processando na Blockchain...' : 'Forjar dNFT (100 LEAF)'}
             </button>
 
             {hash && (
-                <div className="mt-4 p-3 bg-green-900/30 border border-green-800 rounded text-sm text-green-400 break-all">
-                    Sucesso! Hash: {hash}
+                <div className="mt-6 p-4 bg-emerald-900/20 border border-emerald-800/30 rounded-2xl text-xs text-emerald-400 break-all font-mono">
+                    <p className="font-bold mb-1 uppercase">Sucesso!</p>
+                    Hash: {hash}
                 </div>
             )}
-            
+
             {error && (
-                <div className="mt-4 p-3 bg-red-900/30 border border-red-800 rounded text-sm text-red-400">
+                <div className="mt-6 p-4 bg-red-900/20 border border-red-800/30 rounded-2xl text-xs text-red-400 font-bold uppercase">
                     {error}
                 </div>
             )}

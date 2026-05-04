@@ -1,36 +1,43 @@
-// apps/web/src/components/ForestGallery.tsx
 'use client';
 
-import { useForest } from '../hooks/useForest';
-import { FLORESTAS_CONFIG } from '../lib/soroban/config';
+import { ForestNFT } from '@/hooks/useForest';
+import { Leaf } from 'lucide-react';
 
-export default function ForestGallery({ publicKey }: { publicKey: string }) {
-    const { nfts, loading } = useForest(publicKey);
+interface ForestGalleryProps {
+    nfts: ForestNFT[];
+    loading: boolean;
+}
 
-    if (loading) return <div className="text-neutral-500" > Carregando seus ativos...</div>;
+export function ForestGallery({ nfts, loading }: ForestGalleryProps) {
+    if (loading) {
+        return <div className="text-slate-500 font-mono animate-pulse">Sincronizando ativos...</div>;
+    }
 
     return (
-        <div className= "grid grid-cols-1 md:grid-cols-3 gap-6 mt-8" >
-        {
-            nfts.map((nft) => (
-                <div key= { nft.id } className = "bg-neutral-900 border border-neutral-800 rounded-xl p-5 hover:border-green-500/50 transition-all group" >
-                <div className="h-32 w-full bg-gradient-to-br from-green-900/20 to-emerald-900/20 rounded-lg mb-4 flex items-center justify-center" >
-            <span className="text-4xl group-hover:scale-110 transition-transform" >🌳</span>
-            </div>
-            < div className = "flex justify-between items-start mb-2" >
-            <h4 className="font-bold text-lg" > Mogno Africano #{ nft.id } </h4>
-            < span className = "text-xs font-bold px-2 py-1 bg-green-500/10 text-green-500 rounded uppercase" >
-            { nft.rarity }
-            </span>
-            </div>
-            < p className = "text-xs text-neutral-500 mb-4" > { nft.species } </p>
-            < div className = "pt-4 border-t border-neutral-800 flex justify-between items-center" >
-            <span className="text-[10px] text-neutral-600 font-mono" > ID: { FLORESTAS_CONFIG.contracts.rwaVault.substring(0, 6) }...</span>
-            < button className = "text-xs text-green-400 hover:underline" > Ver Certificado </button>
-            </div>
-            </div>
-            ))
-        }
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {nfts.map((nft) => (
+                <div key={nft.id} className="bg-slate-900 border border-slate-800 rounded-[32px] overflow-hidden hover:border-emerald-500/50 transition-all group">
+                    <div className="aspect-square bg-slate-800 relative">
+                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-1 rounded-full border border-white/10">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                                {nft.rarity}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Leaf size={14} className="text-emerald-500" />
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                {nft.species}
+                            </span>
+                        </div>
+                        <h3 className="text-xl font-black text-white uppercase italic tracking-tight">
+                            {nft.name}
+                        </h3>
+                    </div>
+                </div>
+            ))}
         </div>
-  );
+    );
 }

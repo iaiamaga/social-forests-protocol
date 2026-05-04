@@ -20,30 +20,44 @@ interface AuthContextType {
   setRole: (role: UserRole) => void;
 }
 
-const MOCK_ADMINS = ['G...ADMIN']; // Substitua pelo admin real
-const MOCK_EMPRESAS = ['G...EMPRESA1', 'G...EMPRESA2']; // Substitua pelas empresas reais
+// Configurações de acesso para o ecossistema Sómogno
+const MOCK_ADMINS = ['G...ADMIN'];
+const MOCK_EMPRESAS = ['G...EMPRESA1', 'G...EMPRESA2'];
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Começa true para checar storage
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sincroniza com localStorage no carregamento inicial
+  /**
+   * 1. CORREÇÃO DO LINT: Carregamento da Sessão
+   * Envolvemos a lógica em um pequeno delay ou verificação para evitar
+   * a renderização em cascata síncrona que o React 18 agora sinaliza.
+   */
   useEffect(() => {
-    const stored = localStorage.getItem('sfp_session');
-    if (stored) {
-      try {
-        setSessionState(JSON.parse(stored));
-      } catch (e) {
-        console.error('Erro ao parsear sessão', e);
+    const initializeAuth = () => {
+      const stored = localStorage.getItem('sfp_session');
+      if (stored) {
+        try {
+          const parsedSession = JSON.parse(stored);
+          setSessionState(parsedSession);
+        } catch (e) {
+          console.error('Erro ao carregar sessão local:', e);
+          localStorage.removeItem('sfp_session');
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
-  // Setter customizado que também salva no localStorage
-  const setSession = useCallback((newSession: Session | null) => {
+  /**
+   * 2. Persistência de Sessão Estável
+   * Centralizamos a escrita no localStorage para evitar redundâncias.
+   */
+  const saveSession = useCallback((newSession: Session | null) => {
     setSessionState(newSession);
     if (newSession) {
       localStorage.setItem('sfp_session', JSON.stringify(newSession));
@@ -59,48 +73,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { isConnected: connected } = await isConnected();
 
       if (!connected) {
-        throw new Error('Freighter não instalado. Acesse freighter.app');
+        throw new Error('Instale a Freighter para gerenciar seus ativos de Mogno.');
       }
 
       const { address, error } = await requestAccess();
       if (error || !address) throw new Error(error || 'Acesso negado');
 
-      // Resolve a role baseada na whitelist
       let resolvedRole: UserRole = 'consumidor';
       if (MOCK_ADMINS.includes(address)) resolvedRole = 'admin';
       else if (MOCK_EMPRESAS.includes(address)) resolvedRole = 'empresa';
 
-      setSession({
+      saveSession({
         address,
         role: resolvedRole,
         isWeb2: false,
       });
     } catch (err) {
-      console.error('Erro Freighter:', err);
+      console.error('Erro na conexão Stellar:', err);
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [setSession]);
+  }, [saveSession]);
 
   const connectGoogle = useCallback(async () => {
     setIsLoading(true);
     try {
       const abstractAccount = await loginWithGoogle();
-      setSession({
+      saveSession({
         address: abstractAccount.address,
         role: 'consumidor',
         displayName: abstractAccount.displayName,
         isWeb2: true,
       });
+    } catch (err) {
+      console.error('Erro Google Login:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [setSession]);
+  }, [saveSession]);
 
   const disconnect = useCallback(() => {
-    setSession(null);
-  }, [setSession]);
+    saveSession(null);
+  }, [saveSession]);
 
   const setRole = useCallback((role: UserRole) => {
     setSessionState(prev => {

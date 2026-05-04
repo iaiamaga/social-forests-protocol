@@ -2,8 +2,8 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useHeroState } from "@/hooks/useHeroState";
-import GlobalStatus from "@/components/GlobalStatus";
-import { ArrowUp, Loader2, Leaf, ShieldCheck } from "lucide-react";
+import { GlobalStatus } from "@/components/GlobalStatus";
+import { ArrowUp, Loader2, Leaf } from "lucide-react";
 
 export default function ViveiroPage() {
   const { session } = useAuth();
@@ -18,7 +18,7 @@ export default function ViveiroPage() {
         <div className="lg:col-span-2 space-y-10">
           <div className="bg-[#1a110a] border-2 border-orange-900/20 rounded-[40px] p-10 shadow-2xl">
             <h3 className="text-[#947D71] text-xs font-black uppercase mb-2">Protocolo Florestal</h3>
-            <p className="text-[#FFA800] text-4xl font-black italic italic">CONTRATO RWA ATIVO</p>
+            <p className="text-[#FFA800] text-4xl font-black italic">CONTRATO RWA ATIVO</p>
             <div className="mt-8 bg-black/40 p-6 rounded-2xl border border-white/5 flex items-center gap-6">
               <Leaf className="text-[#13E89B]" size={40} />
               <div>

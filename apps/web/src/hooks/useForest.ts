@@ -1,44 +1,53 @@
-// apps/web/src/hooks/useForest.ts
-import { useState, useEffect } from 'react';
-import { rpc, Contract, Address } from '@stellar/stellar-sdk';
-import { FLORESTAS_CONFIG } from '../lib/soroban/config';
+'use client';
 
-const server = new rpc.Server(FLORESTAS_CONFIG.rpcUrl);
+import { useState, useEffect, useCallback } from 'react';
+
+/** 
+ * Interface para os Ativos Florestais (RWAs)
+ * Adicionamos 'rarity' para categorizar os lotes de mogno.
+ */
+export interface ForestNFT {
+    id: string;
+    name: string;
+    species: string;
+    image_url: string;
+    rarity: string; // Propriedade adicionada para resolver o erro
+}
 
 export function useForest(publicKey: string | null) {
-    const [nfts, setNfts] = useState<any[]>([]);
+    const [nfts, setNfts] = useState<ForestNFT[]>([]);
     const [loading, setLoading] = useState(false);
 
-    const fetchForest = async () => {
+    const fetchForest = useCallback(async () => {
         if (!publicKey) return;
+
         setLoading(true);
-
         try {
-            // Aqui simulamos a busca dos dados. 
-            // Em breve, usaremos o server.getLedgerEntries para listar seus dNFTs reais.
-
-            // Mock inicial para visualização do dNFT de Mogno Africano (Khaya senegalensis)
-            // que você já validou na rede.
-            const mockData = [
+            // Mock de dados representando o manejo de Mogno Africano
+            const mockNfts: ForestNFT[] = [
                 {
-                    id: 1,
-                    rarity: 'Plantador',
-                    species: 'Mogno Africano',
-                    origin: 'Viveiro Maravilha'
+                    id: "1",
+                    name: "Lote Mogno 01",
+                    species: "Khaya senegalensis",
+                    image_url: "/tree-placeholder.jpg",
+                    rarity: "Premium"
                 }
             ];
 
-            setNfts(mockData);
+            setNfts(mockNfts);
         } catch (e) {
-            console.error("Erro ao carregar ativos florestais:", e);
+            console.error("Erro ao carregar inventário:", e);
         } finally {
             setLoading(false);
         }
-    };
+    }, [publicKey]);
 
     useEffect(() => {
-        fetchForest();
-    }, [publicKey]);
+        const timer = setTimeout(() => {
+            fetchForest();
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [fetchForest]);
 
     return { nfts, loading, refresh: fetchForest };
 }
