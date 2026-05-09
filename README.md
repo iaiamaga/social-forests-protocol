@@ -142,9 +142,9 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 > **[RE]³ - ReReGeneradora** is the first known decelerator ⚡ connected to what is already changing the logic of the world we live in: AI & Web3.
 
-- **Pedro Bruder** · `[RE]³ Advisor` ([LinkedIn](https://www.linkedin.com/in/pedrobruder))
-- **Vinícius Braz Rocha** · `[RE]³ Advisor & Protocol Co-initiator` ([LinkedIn](https://www.linkedin.com/in/vrselfmedia/))
-- **Enzo Garcia** · `[RE]³ Advisor` ([LinkedIn](https://www.linkedin.com/in/enzo-garcia-295066316))
+- **Pedro Bruder** · `[RE]³ Advisor` ([LinkedIn](https://www.linkedin.com/in/pedrobruder) · [GitHub](https://github.com/BasedCaveman))
+- **Vinícius Braz Rocha** · `[RE]³ Advisor & Protocol Co-initiator` ([LinkedIn](https://www.linkedin.com/in/vrselfmedia/) · [GitHub](https://github.com/glocalVR))
+- **Enzo Garcia** · `[RE]³ Advisor` ([LinkedIn](https://www.linkedin.com/in/enzo-garcia-295066316) · [GitHub](https://github.com/F0rtyF0ur))
 
 ---
 
