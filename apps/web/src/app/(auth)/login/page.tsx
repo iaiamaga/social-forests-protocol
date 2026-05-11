@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
-  const { connectFreighter, connectGoogle, isLoading } = useAuth();
+  const { connectFreighter, connectGoogle, isLoading, session } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -13,7 +13,8 @@ export default function Home() {
     try {
       setError(null);
       await connectFreighter();
-      router.push('/dashboard');
+      // Freighter = Web3 nativo → fluxo B2B (Empresa/Admin)
+      router.push('/empresa/dashboard');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao conectar carteira');
     }
@@ -23,7 +24,8 @@ export default function Home() {
     try {
       setError(null);
       await connectGoogle();
-      router.push('/dashboard');
+      // Google = Account Abstraction → fluxo B2C (Consumidor)
+      router.push('/consumidor/dashboard');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao entrar com Google');
     }
