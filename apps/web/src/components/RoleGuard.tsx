@@ -64,7 +64,13 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
           Sua credencial de <strong>{session.role}</strong> não tem permissão para este painel.
         </p>
         <button
-          onClick={() => router.push('/dashboard')}
+          onClick={() => {
+            const destination =
+              session.role === 'consumidor'
+                ? '/consumidor/dashboard'
+                : '/empresa/dashboard';
+            router.push(destination);
+          }}
           className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-xl transition-all border border-slate-700"
         >
           <ArrowLeft className="w-4 h-4" /> VOLTAR AO PAINEL

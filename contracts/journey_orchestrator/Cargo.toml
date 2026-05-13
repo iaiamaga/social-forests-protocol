@@ -1,0 +1,16 @@
+[package]
+name = "journey_orchestrator"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+# REMOVIDO: leaf_token e rwa_vault daqui
+# O contractimport! no lib.rs já cuida disso.
+
+[dev-dependencies]
+soroban-sdk = { version = "25", features = ["testutils"] }

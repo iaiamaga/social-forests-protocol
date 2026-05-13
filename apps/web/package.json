@@ -11,7 +11,7 @@
   "dependencies": {
     "@soroban-react/core": "^9.3.0",
     "@stellar/freighter-api": "^6.0.1",
-    "@stellar/stellar-sdk": "^15.0.1",
+    "@stellar/stellar-sdk": "^15.1.0",
     "@supabase/supabase-js": "^2.103.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "0.577.0",

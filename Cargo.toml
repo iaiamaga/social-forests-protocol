@@ -1,12 +1,14 @@
 [workspace]
-members = [
-    "contracts/rwa_vault",
-    "contracts/sbt_reputation",
-    "contracts/hero_journey", 
-    "contracts/florestas-protocol",
-    "contracts/leaf_token"
-, "contracts/sbt_empresa"]
 resolver = "2"
+
+members = [
+    "contracts/leaf_token",
+    "contracts/collateral_vault",
+    "contracts/guardian_id",
+    "contracts/company_id",
+    "contracts/journey_orchestrator",
+    "contracts/forest_mythos_vault",
+]
 
 [workspace.dependencies]
 soroban-sdk = "25.3.1"
