@@ -1,433 +1,190 @@
 #![no_std]
-#![allow(deprecated)] // 🛡️ Silencia avisos do SDK em transição, preservando compatibilidade
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, panic_with_error, symbol_short, Address,
-    Env, IntoVal, Symbol,
+    contract, contracterror, contractevent, contractimpl, contracttype, panic_with_error, vec,
+    Address, Env, IntoVal, Symbol,
 };
 
 // =============================================================================
-// ERROS
+// EVENTOS DE MERCADO (DeFi)
 // =============================================================================
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[repr(u32)]
-pub enum VaultError {
-    NotInitialized = 1,
-    Unauthorized = 2,
-    InsufficientCollateral = 3,
-    AssetLocked = 4,
-    InvalidAmount = 5,   // 🛡️ Previne ataques de i128 negativos
-    ArithmeticError = 6, // 🛡️ Previne overflow de C-Creds
-    InvalidNft = 7,      // 🛡️ O NFT não existe ou não pertence a este utilizador
-    AlreadyInitialized = 8,
+#[contractevent(topics = ["master", "inventory_added"])]
+pub struct EventInventoryAdded {
+    pub company: Address,
+    pub units: u32,
+}
+
+#[contractevent(topics = ["master", "credit_traded"])]
+pub struct EventCreditTraded {
+    pub from: Address,
+    pub to: Address,
+    pub amount: i128,
+}
+
+#[contractevent(topics = ["master", "debt_settled"])]
+pub struct EventDebtSettled {
+    pub company: Address,
+    pub amount: i128,
 }
 
 // =============================================================================
-// ESTRUTURAS DE DADOS E CHAVES
+// ESTRUTURAS E CONTEXTO
 // =============================================================================
 #[contracttype]
-#[derive(Clone, Debug)]
-pub struct CollateralRecord {
-    pub user: Address,
-    pub nft_id: u32,
-    pub timestamp: u64,
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollateralPosition {
+    pub total_units: u32, // Qtd de mudas/ativos físicos
+    pub asset_type: u32,  // 1=Mogno, 2=Nativas, 3=Solar
+    pub last_sync_ledger: u32,
 }
 
 #[contracttype]
 pub enum DataKey {
     Admin,
-    Oracle,
-    DnftContract, // 🛡️ Novo: Guardamos o endereço do contrato dNFT para validação cruzada
-    Collateral(Address, u32),
-    CCredBalance(Address),
-    TotalCCred,
+    SbtContract,
+    Position(Address),
 }
 
-// 🛡️ Constantes de TTL (Time to Live)
-const DAY_IN_LEDGERS: u32 = 17_280;
-const INSTANCE_THRESHOLD: u32 = 15 * DAY_IN_LEDGERS;
-const INSTANCE_BUMP: u32 = 30 * DAY_IN_LEDGERS;
-
-const PERSISTENT_THRESHOLD: u32 = 30 * DAY_IN_LEDGERS;
-const PERSISTENT_BUMP: u32 = 60 * DAY_IN_LEDGERS;
-
-// =========================================================================
-// HELPERS DE ESTADO (Impedem perda de dados)
-// =========================================================================
-fn bump_instance(env: &Env) {
-    env.storage()
-        .instance()
-        .extend_ttl(INSTANCE_THRESHOLD, INSTANCE_BUMP);
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(u32)]
+pub enum MasterError {
+    NotInitialized = 1,
+    InsufficientCredits = 2,
+    Unauthorized = 3,
+    ArithmeticOverflow = 4,
 }
 
-fn read_ccred_balance(env: &Env, id: &Address) -> i128 {
-    let key = DataKey::CCredBalance(id.clone());
-    if let Some(bal) = env.storage().persistent().get::<_, i128>(&key) {
-        env.storage()
-            .persistent()
-            .extend_ttl(&key, PERSISTENT_THRESHOLD, PERSISTENT_BUMP);
-        bal
-    } else {
-        0
-    }
+// 🛡️ Helper para o compilador entender o struct vindo do SBT Empresa
+#[contracttype]
+pub struct SbtEmpresaRecord {
+    pub carbon_seq_g: i128,
+    pub c_cred_balance: i128,
+    pub c_debt_balance: i128,
+    pub biomass_kg: i128,
+    pub ods_badges: soroban_sdk::Vec<u32>,
+    pub verified: bool,
 }
 
-fn write_ccred_balance(env: &Env, id: &Address, amount: i128) {
-    let key = DataKey::CCredBalance(id.clone());
-    env.storage().persistent().set(&key, &amount);
-    env.storage()
-        .persistent()
-        .extend_ttl(&key, PERSISTENT_THRESHOLD, PERSISTENT_BUMP);
-}
-
-fn get_oracle(env: &Env) -> Address {
-    env.storage()
-        .instance()
-        .get(&DataKey::Oracle)
-        .unwrap_or_else(|| panic_with_error!(env, VaultError::NotInitialized))
-}
-
-// =========================================================================
-// CONTRATO PRINCIPAL — COLLATERAL VAULT
-// =========================================================================
+// =============================================================================
+// IMPLEMENTAÇÃO DO MASTERCHIEF
+// =============================================================================
 #[contract]
-pub struct CollateralVault; // CORREÇÃO AQUI: De RwaVault para CollateralVault
+pub struct CollateralMasterChief;
 
 #[contractimpl]
-impl CollateralVault {
-    // CORREÇÃO AQUI: De RwaVault para CollateralVault
-    // -------------------------------------------------------------------------
-    // INICIALIZAÇÃO
-    // -------------------------------------------------------------------------
-
-    pub fn initialize(env: Env, admin: Address, oracle: Address, dnft_contract: Address) {
+impl CollateralMasterChief {
+    pub fn initialize(env: Env, admin: Address, sbt_contract: Address) {
         if env.storage().instance().has(&DataKey::Admin) {
-            panic_with_error!(&env, VaultError::AlreadyInitialized);
+            return;
         }
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage()
+            .instance()
+            .set(&DataKey::SbtContract, &sbt_contract);
+    }
 
+    /// 1. GESTÃO DE INVENTÁRIO: Adiciona mudas ao lastro da empresa
+    pub fn add_inventory(env: Env, company: Address, units: u32, asset_type: u32) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::Oracle, &oracle);
-        env.storage()
-            .instance()
-            .set(&DataKey::DnftContract, &dnft_contract);
-        env.storage().instance().set(&DataKey::TotalCCred, &0i128);
+        let key = DataKey::Position(company.clone());
+        let mut pos: CollateralPosition =
+            env.storage()
+                .persistent()
+                .get(&key)
+                .unwrap_or(CollateralPosition {
+                    total_units: 0,
+                    asset_type,
+                    last_sync_ledger: 0,
+                });
 
-        bump_instance(&env);
+        pos.total_units = pos.total_units.checked_add(units).expect("Overflow");
+        pos.last_sync_ledger = env.ledger().sequence();
+
+        env.storage().persistent().set(&key, &pos);
+        EventInventoryAdded { company, units }.publish(&env);
     }
 
-    // -------------------------------------------------------------------------
-    // GESTÃO DE COLATERAL (NFT)
-    // -------------------------------------------------------------------------
+    /// 2. DEFI MARKETPLACE: Negocia C-Cred excedente entre empresas parceiras
+    pub fn trade_credits(env: Env, from: Address, to: Address, amount: i128) {
+        from.require_auth();
+        let sbt_addr: Address = env.storage().instance().get(&DataKey::SbtContract).unwrap();
 
-    pub fn deposit_dnft(env: Env, user: Address, nft_id: u32) {
-        bump_instance(&env);
-        user.require_auth();
-
-        let dnft_address: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::DnftContract)
-            .unwrap_or_else(|| panic_with_error!(&env, VaultError::NotInitialized));
-
-        let nft_owner: Address = env.invoke_contract(
-            &dnft_address,
-            &Symbol::new(&env, "get_owner"),
-            soroban_sdk::vec![&env, nft_id.into_val(&env)],
+        // Consulta o net-zero da vendedora no Cartório (SBT)
+        let sbt_from: SbtEmpresaRecord = env.invoke_contract(
+            &sbt_addr,
+            &Symbol::new(&env, "get_empresa_sbt"),
+            vec![&env, from.into_val(&env)],
         );
 
-        if nft_owner != user {
-            panic_with_error!(&env, VaultError::InvalidNft);
+        // Regra de Ouro: Só vende se (Créditos - Dívida) > amount
+        let available = sbt_from
+            .c_cred_balance
+            .checked_sub(sbt_from.c_debt_balance)
+            .unwrap();
+        if available < amount {
+            panic_with_error!(&env, MasterError::InsufficientCredits);
         }
 
-        let key = DataKey::Collateral(user.clone(), nft_id);
+        // Executa a troca de saldos no Cartório (SBT Empresa)
+        env.invoke_contract::<()>(
+            &sbt_addr,
+            &Symbol::new(&env, "update_credits"),
+            vec![&env, from.clone().into_val(&env), (-amount).into_val(&env)],
+        );
+        env.invoke_contract::<()>(
+            &sbt_addr,
+            &Symbol::new(&env, "update_credits"),
+            vec![&env, to.clone().into_val(&env), amount.into_val(&env)],
+        );
 
-        if env.storage().persistent().has(&key) {
-            panic_with_error!(&env, VaultError::AssetLocked);
+        EventCreditTraded { from, to, amount }.publish(&env);
+    }
+
+    /// 3. COMPENSAÇÃO: "Aposenta" créditos para abater a dívida ambiental
+    pub fn settle_debt(env: Env, company: Address, amount: i128) {
+        company.require_auth();
+        let sbt_addr: Address = env.storage().instance().get(&DataKey::SbtContract).unwrap();
+
+        let sbt: SbtEmpresaRecord = env.invoke_contract(
+            &sbt_addr,
+            &Symbol::new(&env, "get_empresa_sbt"),
+            vec![&env, company.into_val(&env)],
+        );
+
+        if sbt.c_cred_balance < amount {
+            panic_with_error!(&env, MasterError::InsufficientCredits);
         }
 
-        let record = CollateralRecord {
-            user: user.clone(),
-            nft_id,
-            timestamp: env.ledger().timestamp(),
-        };
+        // Reduz Crédito e Reduz Dívida simultaneamente no Cartório
+        env.invoke_contract::<()>(
+            &sbt_addr,
+            &Symbol::new(&env, "update_credits"),
+            vec![
+                &env,
+                company.clone().into_val(&env),
+                (-amount).into_val(&env),
+            ],
+        );
+        env.invoke_contract::<()>(
+            &sbt_addr,
+            &Symbol::new(&env, "set_carbon_debt"),
+            vec![
+                &env,
+                company.clone().into_val(&env),
+                (sbt.c_debt_balance - amount).into_val(&env),
+            ],
+        );
 
-        env.storage().persistent().set(&key, &record);
+        EventDebtSettled { company, amount }.publish(&env);
+    }
+
+    pub fn get_position(env: Env, company: Address) -> CollateralPosition {
         env.storage()
             .persistent()
-            .extend_ttl(&key, PERSISTENT_THRESHOLD, PERSISTENT_BUMP);
-
-        env.events()
-            .publish((symbol_short!("deposit"), user), nft_id);
-    }
-
-    pub fn withdraw_dnft(env: Env, user: Address, nft_id: u32) {
-        bump_instance(&env);
-        user.require_auth();
-
-        let key = DataKey::Collateral(user.clone(), nft_id);
-
-        if !env.storage().persistent().has(&key) {
-            panic_with_error!(&env, VaultError::InsufficientCollateral);
-        }
-
-        env.storage().persistent().remove(&key);
-        env.events()
-            .publish((symbol_short!("withdraw"), user), nft_id);
-    }
-
-    // -------------------------------------------------------------------------
-    // CRÉDITOS DE CARBONO (C-CRED)
-    // -------------------------------------------------------------------------
-
-    pub fn mint_c_cred(env: Env, user: Address, amount: i128) {
-        if amount <= 0 {
-            panic_with_error!(&env, VaultError::InvalidAmount);
-        }
-
-        bump_instance(&env);
-        get_oracle(&env).require_auth();
-
-        let current_bal = read_ccred_balance(&env, &user);
-        let new_bal = current_bal
-            .checked_add(amount)
-            .unwrap_or_else(|| panic_with_error!(&env, VaultError::ArithmeticError));
-
-        write_ccred_balance(&env, &user, new_bal);
-
-        let total_key = DataKey::TotalCCred;
-        let total: i128 = env.storage().instance().get(&total_key).unwrap_or(0i128);
-        let new_total = total
-            .checked_add(amount)
-            .unwrap_or_else(|| panic_with_error!(&env, VaultError::ArithmeticError));
-
-        env.storage().instance().set(&total_key, &new_total);
-
-        env.events()
-            .publish((symbol_short!("mint_cc"), user), amount);
-    }
-
-    pub fn burn_c_cred(env: Env, user: Address, amount: i128) {
-        if amount <= 0 {
-            panic_with_error!(&env, VaultError::InvalidAmount);
-        }
-
-        bump_instance(&env);
-        user.require_auth();
-
-        let current_bal = read_ccred_balance(&env, &user);
-
-        if current_bal < amount {
-            panic_with_error!(&env, VaultError::InsufficientCollateral);
-        }
-
-        let new_bal = current_bal
-            .checked_sub(amount)
-            .unwrap_or_else(|| panic_with_error!(&env, VaultError::ArithmeticError));
-
-        write_ccred_balance(&env, &user, new_bal);
-
-        let total_key = DataKey::TotalCCred;
-        let total: i128 = env.storage().instance().get(&total_key).unwrap_or(0i128);
-
-        env.storage().instance().set(&total_key, &(total - amount));
-
-        env.events()
-            .publish((symbol_short!("burn_cc"), user), amount);
-    }
-
-    pub fn get_ccred_balance(env: Env, user: Address) -> i128 {
-        bump_instance(&env);
-        read_ccred_balance(&env, &user)
-    }
-}
-
-// =============================================================================
-// TESTES (ATUALIZADOS PARA SOROBAN v26)
-// =============================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use soroban_sdk::{testutils::Address as _, Env};
-
-    pub mod dnft_mock {
-        use soroban_sdk::{contract, contractimpl, Address, Env};
-
-        #[contract]
-        pub struct DnftMock;
-
-        #[contractimpl]
-        impl DnftMock {
-            pub fn get_owner(env: Env, _nft_id: u32) -> Address {
-                env.storage().instance().get(&0).unwrap()
-            }
-            pub fn set_owner(env: Env, owner: Address) {
-                env.storage().instance().set(&0, &owner);
-            }
-        }
-    }
-
-    fn setup() -> (
-        Env,
-        CollateralVaultClient<'static>,
-        Address,
-        Address,
-        Address,
-        Address,
-    ) {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let oracle = Address::generate(&env);
-        let user = Address::generate(&env);
-
-        let dnft_id = env.register(dnft_mock::DnftMock, ());
-        let dnft_client = dnft_mock::DnftMockClient::new(&env, &dnft_id);
-        dnft_client.set_owner(&user);
-
-        let vault_id = env.register(CollateralVault, ());
-        let vault_client = CollateralVaultClient::new(&env, &vault_id);
-        vault_client.initialize(&admin, &oracle, &dnft_id);
-
-        (env, vault_client, admin, oracle, user, dnft_id)
-    }
-
-    #[test]
-    fn test_deposit_and_withdraw_legitimate_owner() {
-        let (_env, vault, _admin, _oracle, user, _dnft) = setup();
-
-        vault.deposit_dnft(&user, &99);
-        vault.withdraw_dnft(&user, &99);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #7)")] // 🛡️ InvalidNft
-    fn test_deposit_fails_if_not_owner() {
-        let (env, vault, _admin, _oracle, _user, _dnft) = setup();
-        let hacker = Address::generate(&env);
-        vault.deposit_dnft(&hacker, &99);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #4)")] // 🛡️ AssetLocked
-    fn test_double_deposit_fails() {
-        let (_env, vault, _admin, _oracle, user, _dnft) = setup();
-        vault.deposit_dnft(&user, &99);
-        vault.deposit_dnft(&user, &99);
-    }
-
-    #[test]
-    fn test_mint_and_burn_c_cred() {
-        let (env, vault, _admin, oracle, user, _dnft) = setup();
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &oracle,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "mint_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), 5000i128.into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .mint_c_cred(&user, &5000);
-
-        assert_eq!(vault.get_ccred_balance(&user), 5000);
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &user,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "burn_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), 2000i128.into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .burn_c_cred(&user, &2000);
-
-        assert_eq!(vault.get_ccred_balance(&user), 3000);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #5)")] // 🛡️ InvalidAmount
-    fn test_mint_negative_c_cred_fails() {
-        let (env, vault, _admin, oracle, user, _dnft) = setup();
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &oracle,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "mint_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), (-500i128).into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .mint_c_cred(&user, &-500);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #5)")] // 🛡️ InvalidAmount
-    fn test_burn_negative_c_cred_fails() {
-        let (env, vault, _admin, oracle, user, _dnft) = setup();
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &oracle,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "mint_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), 1000i128.into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .mint_c_cred(&user, &1000);
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &user,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "burn_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), (-100i128).into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .burn_c_cred(&user, &-100);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #3)")] // 🛡️ InsufficientCollateral
-    fn test_burn_more_than_balance_fails() {
-        let (env, vault, _admin, oracle, user, _dnft) = setup();
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &oracle,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "mint_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), 100i128.into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .mint_c_cred(&user, &100);
-
-        vault
-            .mock_auths(&[soroban_sdk::testutils::MockAuth {
-                address: &user,
-                invoke: &soroban_sdk::testutils::MockAuthInvoke {
-                    contract: &vault.address,
-                    fn_name: "burn_c_cred",
-                    args: soroban_sdk::vec![&env, user.into_val(&env), 500i128.into_val(&env)],
-                    sub_invokes: &[],
-                },
-            }])
-            .burn_c_cred(&user, &500);
+            .get(&DataKey::Position(company))
+            .expect("NoPos")
     }
 }
