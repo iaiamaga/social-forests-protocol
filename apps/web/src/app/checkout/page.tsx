@@ -77,7 +77,7 @@ export default function CheckoutPage() {
                     <div className="flex justify-between items-end px-2">
                         <div>
                             <p className="text-gray-400 text-sm">Total Estimado</p>
-                            <p className="text-[10px] text-[#00F5A0] mt-1">Stripe Bypass Ativo</p>
+                            <p className="text-[10px] text-[#00F5A0] mt-1">Soroban Direct Payment</p>
                         </div>
                         <span className="text-3xl font-black text-white">R$ {(quantity * precoUnitario).toLocaleString('pt-BR')}</span>
                     </div>

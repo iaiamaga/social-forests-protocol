@@ -81,7 +81,7 @@ export default function EmpresaDashboard() {
             <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
               Cashback Verde <ArrowRight className="w-4 h-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
             </h3>
-            <p className="text-sm text-slate-400 mb-6">Recarregue sua Tesouraria via Stripe e defina as regras de conversão (R$ para LEAFs).</p>
+            <p className="text-sm text-slate-400 mb-6">Recarregue sua Tesouraria via USDC (x402) e defina as regras de conversão (USDC para LEAFs).</p>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-white">{mockCompanyState.poolFolhas.toLocaleString()}</span>
               <span className="text-emerald-500 font-medium text-sm">LEAFs no Pool</span>

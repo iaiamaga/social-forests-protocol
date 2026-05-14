@@ -445,9 +445,9 @@ export default function DaoPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-700">
-          Votos são registrados on-chain somente após assinatura da carteira.
+          Votos são registrados localmente. Integração on-chain via contrato de governança em desenvolvimento.
           <br />
-          Snapshot a cada bloco · Rede Polygon
+          Snapshot a cada bloco · Rede Stellar Soroban
         </p>
       </div>
     </main>

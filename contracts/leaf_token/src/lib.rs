@@ -168,3 +168,78 @@ impl LeafToken {
             .decimals
     }
 }
+
+
+// =============================================================================
+// TESTES UNITÁRIOS
+// =============================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{testutils::Address as _, Env, String as SorobanString};
+
+    fn setup() -> (Env, LeafTokenClient<'static>, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(LeafToken, ());
+        let client = LeafTokenClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let name = SorobanString::from_str(&env, "Social Forest Leaf Token");
+        let symbol = SorobanString::from_str(&env, "LEAF");
+        client.initialize(&admin, &name, &symbol, &7);
+        (env, client, admin)
+    }
+
+    #[test]
+    fn test_mint_and_balance() {
+        let (env, client, _admin) = setup();
+        let user = Address::generate(&env);
+        client.mint(&user, &1_000_0000000);
+        assert_eq!(client.balance(&user), 1_000_0000000);
+    }
+
+    #[test]
+    fn test_transfer() {
+        let (env, client, _admin) = setup();
+        let alice = Address::generate(&env);
+        let bob = Address::generate(&env);
+        client.mint(&alice, &5_000_0000000);
+        client.transfer(&alice, &bob, &2_000_0000000);
+        assert_eq!(client.balance(&alice), 3_000_0000000);
+        assert_eq!(client.balance(&bob), 2_000_0000000);
+    }
+
+    #[test]
+    fn test_burn() {
+        let (env, client, _admin) = setup();
+        let user = Address::generate(&env);
+        client.mint(&user, &1_000_0000000);
+        client.burn(&user, &400_0000000);
+        assert_eq!(client.balance(&user), 600_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_burn_insufficient_balance() {
+        let (env, client, _admin) = setup();
+        let user = Address::generate(&env);
+        client.mint(&user, &100_0000000);
+        client.burn(&user, &200_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1)")]
+    fn test_double_initialize() {
+        let (env, client, _admin) = setup();
+        let other = Address::generate(&env);
+        let name = SorobanString::from_str(&env, "X");
+        let symbol = SorobanString::from_str(&env, "X");
+        client.initialize(&other, &name, &symbol, &7);
+    }
+
+    #[test]
+    fn test_metadata() {
+        let (_env, client, _admin) = setup();
+        assert_eq!(client.decimals(), 7);
+    }
+}

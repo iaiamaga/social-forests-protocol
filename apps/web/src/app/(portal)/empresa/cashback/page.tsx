@@ -7,7 +7,7 @@ import Link from 'next/link';
 import RoleGuard from '@/components/RoleGuard';
 
 export default function EmpresaCashbackPage() {
-  const [showStripeModal, setShowStripeModal] = useState(false);
+  const [showFundModal, setShowFundModal] = useState(false);
   const [conversionRate, setConversionRate] = useState(5); // 1 BRL = 5 LEAFs
   const poolFolhas = 45000;
 
@@ -29,7 +29,7 @@ export default function EmpresaCashbackPage() {
               Tesouraria & Cashback <Leaf className="w-8 h-8 text-emerald-400" />
             </h1>
             <p className="text-slate-400 text-sm max-w-xl">
-              Gerencie o seu saldo de LEAFs e defina como eles são distribuídos automaticamente nas compras dos seus clientes (via Webhook Stripe ou API Customizada).
+              Gerencie o seu saldo de LEAFs e defina como eles são distribuídos automaticamente nas compras dos seus clientes (via x402 Payment ou API Customizada).
             </p>
           </header>
 
@@ -51,7 +51,7 @@ export default function EmpresaCashbackPage() {
               </div>
 
               <button 
-                onClick={() => setShowStripeModal(true)}
+                onClick={() => setShowFundModal(true)}
                 className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-4 rounded-xl flex justify-center items-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transform hover:-translate-y-1"
               >
                 <CreditCard className="w-5 h-5" /> Adicionar Fundos (Fiat On-Ramp)
@@ -93,8 +93,8 @@ export default function EmpresaCashbackPage() {
               <div className="space-y-4 mb-8">
                 <div className="flex items-center justify-between bg-white/5 p-4 rounded-xl">
                   <div>
-                    <h4 className="font-bold text-white text-sm">Webhook Stripe</h4>
-                    <p className="text-xs text-slate-400">Distribui via payment_intent.succeeded</p>
+                    <h4 className="font-bold text-white text-sm">x402 Payment Gateway</h4>
+                    <p className="text-xs text-slate-400">Distribui via pagamento USDC on-chain</p>
                   </div>
                   <div className="w-10 h-5 bg-emerald-500 rounded-full relative cursor-pointer">
                     <div className="w-4 h-4 bg-white rounded-full absolute right-0.5 top-0.5" />
@@ -120,10 +120,10 @@ export default function EmpresaCashbackPage() {
         </div>
 
         {/* Modal Simulado de Checkout */}
-        {showStripeModal && (
+        {showFundModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
             <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative">
-              <button onClick={() => setShowStripeModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
+              <button onClick={() => setShowFundModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">✕</button>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CreditCard className="w-8 h-8" />
@@ -150,8 +150,8 @@ export default function EmpresaCashbackPage() {
 
               <button 
                 onClick={() => {
-                  alert("Integração com Stripe Managed Payments: O Fiat é depositado, o Soroban rwa_vault é chamado para credenciar LEAFs à empresa.");
-                  setShowStripeModal(false);
+                  alert("Integração x402: O USDC é depositado on-chain, o Soroban journey_orchestrator é chamado para credenciar LEAFs à empresa.");
+                  setShowFundModal(false);
                 }}
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition-colors"
               >

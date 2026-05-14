@@ -251,3 +251,94 @@ impl ForestMythosVault {
             .unwrap_or_else(|| panic_with_error!(&env, DnftError::TokenNotFound))
     }
 }
+
+
+// =============================================================================
+// TESTES UNITÁRIOS
+// =============================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{testutils::Address as _, vec, Env};
+
+    fn setup() -> (Env, ForestMythosVaultClient<'static>, Address, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(ForestMythosVault, ());
+        let client = ForestMythosVaultClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let oracle = Address::generate(&env);
+        client.initialize(&admin, &oracle);
+        (env, client, admin, oracle)
+    }
+
+    #[test]
+    fn test_mint_dnft() {
+        let (env, client, _admin, _oracle) = setup();
+        let user = Address::generate(&env);
+        let token_id = client.mint_dnft(&user);
+        assert_eq!(token_id, 1);
+
+        let record = client.get_dnft(&token_id);
+        assert_eq!(record.owner, user);
+        assert_eq!(record.tier, 1);
+        assert_eq!(record.tree_count, 1);
+        assert_eq!(record.phase, 1);
+    }
+
+    #[test]
+    fn test_oracle_report() {
+        let (env, client, _admin, _oracle) = setup();
+        let user = Address::generate(&env);
+        let token_id = client.mint_dnft(&user);
+
+        client.process_oracle_report(&token_id, &50, &120, &2);
+        let record = client.get_dnft(&token_id);
+        assert_eq!(record.biomass_kg, 50);
+        assert_eq!(record.carbon_g, 120);
+        assert_eq!(record.phase, 2);
+    }
+
+    #[test]
+    fn test_forge_requires_min_2_tokens() {
+        let (env, client, _admin, _oracle) = setup();
+        let user = Address::generate(&env);
+
+        let id1 = client.mint_dnft(&user);
+        let id2 = client.mint_dnft(&user);
+
+        // Advance both past phase 1 via oracle
+        client.process_oracle_report(&id1, &10, &10, &2);
+        client.process_oracle_report(&id2, &10, &10, &2);
+
+        let ids = vec![&env, id1, id2];
+        let new_id = client.forge_dnft(&user, &ids);
+        assert_eq!(new_id, 3);
+
+        let record = client.get_dnft(&new_id);
+        assert_eq!(record.tier, 2);
+        assert_eq!(record.tree_count, 2);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #4)")]
+    fn test_forge_blocked_in_phase_1() {
+        let (env, client, _admin, _oracle) = setup();
+        let user = Address::generate(&env);
+
+        let id1 = client.mint_dnft(&user);
+        let id2 = client.mint_dnft(&user);
+
+        // Try to forge without advancing phase — should panic (PhaseLocked)
+        let ids = vec![&env, id1, id2];
+        client.forge_dnft(&user, &ids);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1)")]
+    fn test_double_initialize() {
+        let (env, client, _admin, _oracle) = setup();
+        let other = Address::generate(&env);
+        client.initialize(&other, &other);
+    }
+}

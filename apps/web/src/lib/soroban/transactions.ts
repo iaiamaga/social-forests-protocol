@@ -1,22 +1,29 @@
 // apps/web/src/lib/soroban/transactions.ts
 import { rpc, TransactionBuilder, Networks, Contract, Address } from '@stellar/stellar-sdk';
 import * as freighter from '@stellar/freighter-api';
-import { FLORESTAS_CONFIG } from './config';
+import { CONTRACT_IDS, NETWORK_CONFIG } from './config';
 
 // Agora usamos rpc.Server nas versões mais novas da Stellar SDK
-const server = new rpc.Server(FLORESTAS_CONFIG.rpcUrl);
+const server = new rpc.Server(NETWORK_CONFIG.rpcUrl);
 
 export async function forgeTreeTransaction(userPublicKey: string) {
     try {
         const account = await server.getAccount(userPublicKey);
-        const contract = new Contract(FLORESTAS_CONFIG.contracts.heroJourney);
+        const contract = new Contract(CONTRACT_IDS.journeyOrchestrator);
         const userAddressScVal = new Address(userPublicKey).toScVal();
+        const leafCost = BigInt(1000_0000000); // 100 LEAF (7 decimais)
+
+        const { nativeToScVal } = await import('@stellar/stellar-sdk');
 
         let tx = new TransactionBuilder(account, {
             fee: "10000",
             networkPassphrase: Networks.TESTNET,
         })
-            .addOperation(contract.call("forge_dnft", userAddressScVal))
+            .addOperation(contract.call(
+                "plant_tree",
+                userAddressScVal,
+                nativeToScVal(leafCost, { type: "i128" })
+            ))
             .setTimeout(60)
             .build();
 

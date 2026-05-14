@@ -148,3 +148,67 @@ impl GuardianIdContract {
         panic_with_error!(&env, GuardianError::SoulboundToken);
     }
 }
+
+
+// =============================================================================
+// TESTES UNITÁRIOS
+// =============================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{testutils::Address as _, Env};
+
+    fn setup() -> (Env, GuardianIdContractClient<'static>, Address, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(GuardianIdContract, ());
+        let client = GuardianIdContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        client.initialize(&admin);
+        (env, client, admin, user)
+    }
+
+    #[test]
+    fn test_add_xp_and_level_up() {
+        let (_env, client, _admin, user) = setup();
+        // 999 XP = still level 1
+        client.add_xp(&user, &999);
+        let sbt = client.get_sbt(&user);
+        assert_eq!(sbt.level, 1);
+        assert_eq!(sbt.xp, 999);
+        assert_eq!(sbt.era, 1);
+
+        // 1 more XP = 1000 total = level 2
+        client.add_xp(&user, &1);
+        let sbt2 = client.get_sbt(&user);
+        assert_eq!(sbt2.level, 2);
+        assert_eq!(sbt2.xp, 1000);
+    }
+
+    #[test]
+    fn test_era_progression() {
+        let (_env, client, _admin, user) = setup();
+        // Jump to level 6 (era 2): needs 5001-6000 XP
+        client.add_xp(&user, &5500);
+        let sbt = client.get_sbt(&user);
+        assert_eq!(sbt.level, 6);
+        assert_eq!(sbt.era, 2); // Broto de Esperança
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #4)")]
+    fn test_soulbound_transfer_blocked() {
+        let (env, client, _admin, user) = setup();
+        let hacker = Address::generate(&env);
+        client.transfer(&user, &hacker, &1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #1)")]
+    fn test_double_initialize() {
+        let (env, client, _admin, _user) = setup();
+        let other = Address::generate(&env);
+        client.initialize(&other);
+    }
+}

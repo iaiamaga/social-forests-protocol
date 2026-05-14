@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as StellarSdk from '@stellar/stellar-sdk';
-import { FLORESTAS_CONFIG } from '@/lib/soroban/config';
+import { CONTRACT_IDS, NETWORK_CONFIG } from '@/lib/soroban/config';
 
-const server = new StellarSdk.rpc.Server(FLORESTAS_CONFIG.rpcUrl);
+const server = new StellarSdk.rpc.Server(NETWORK_CONFIG.rpcUrl);
 
 interface AccountBalances {
   asset_type: string;
@@ -27,7 +27,7 @@ export function useAccountBalance(publicKey: string | null) {
 
     try {
       setIsLoading(true);
-      const contractId = FLORESTAS_CONFIG.contracts.leafToken;
+      const contractId = CONTRACT_IDS.leafToken;
       const contract = new StellarSdk.Contract(contractId);
 
       const accountData = (await server.getAccount(publicKey)) as unknown as StellarAccountResponse;

@@ -55,7 +55,7 @@ impl JourneyOrchestrator {
         env.storage().instance().set(&DataKey::MythosVault, &mythos);
     }
 
-    // ── FLUXO B2B: ONBOARDING INSTITUCIONAL (Via Stripe Webhook) ──────────
+    // ── FLUXO B2B: ONBOARDING INSTITUCIONAL (Via x402 / API) ──────────
     pub fn institutional_onboarding(
         env: Env,
         company: Address,
