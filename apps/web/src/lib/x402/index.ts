@@ -5,6 +5,7 @@ export {
   X402_PRICES,
   X402_ROUTES,
   X402_CONTRACTS,
+  assertX402Configured,
 } from "./config";
 
 export { createFacilitatorClient } from "./middleware";

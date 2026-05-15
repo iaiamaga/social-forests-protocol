@@ -50,6 +50,9 @@ jobs:
         run: cargo build --target wasm32v1-none --release --manifest-path contracts/journey_orchestrator/Cargo.toml
 
       # TESTES DOS NOVOS CONTRATOS
+      - name: Test leaf_token
+        run: cargo test --manifest-path contracts/leaf_token/Cargo.toml -- --nocapture
+
       - name: Test collateral_vault
         run: cargo test --manifest-path contracts/collateral_vault/Cargo.toml -- --nocapture
 
@@ -67,8 +70,10 @@ jobs:
 
   frontend:
     name: Next.js Build
-    needs: contracts # Garante que o frontend só compile se os contratos passarem
+    needs: [contracts, secrets-scan]
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_X402_PAY_TO: GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF
     steps:
       - uses: actions/checkout@v4.2.2
       

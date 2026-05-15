@@ -107,6 +107,7 @@ impl CollateralMasterChief {
         pos.last_sync_ledger = env.ledger().sequence();
 
         env.storage().persistent().set(&key, &pos);
+        env.storage().persistent().extend_ttl(&key, 30 * 17_280, 60 * 17_280);
         EventInventoryAdded { company, units }.publish(&env);
     }
 
@@ -119,7 +120,7 @@ impl CollateralMasterChief {
         let sbt_from: SbtEmpresaRecord = env.invoke_contract(
             &sbt_addr,
             &Symbol::new(&env, "get_empresa_sbt"),
-            vec![&env, from.into_val(&env)],
+            vec![&env, from.clone().into_val(&env)],
         );
 
         // Regra de Ouro: Só vende se (Créditos - Dívida) > amount
@@ -154,7 +155,7 @@ impl CollateralMasterChief {
         let sbt: SbtEmpresaRecord = env.invoke_contract(
             &sbt_addr,
             &Symbol::new(&env, "get_empresa_sbt"),
-            vec![&env, company.into_val(&env)],
+            vec![&env, company.clone().into_val(&env)],
         );
 
         if sbt.c_cred_balance < amount {

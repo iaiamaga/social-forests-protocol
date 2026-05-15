@@ -21,9 +21,10 @@ import { NETWORK_CONFIG, CONTRACT_IDS } from "@/lib/soroban/config";
  *   tokenId: number,
  *   biomassKg: number,
  *   carbonG: number,
- *   phase: number,
- *   oracleSecret: string  // Chave secreta do oráculo (env var em produção)
+ *   phase: number
  * }
+ *
+ * Authentication: X-Oracle-Api-Key header (matches ORACLE_API_KEY env var)
  */
 export async function POST(req: NextRequest) {
   try {

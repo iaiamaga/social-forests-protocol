@@ -6,17 +6,19 @@ import { CONTRACT_IDS, NETWORK_CONFIG } from "../soroban/config";
 
 /**
  * Endereço Stellar que recebe os pagamentos USDC via x402.
- * Em produção, substituir pelo endereço da treasury do protocolo.
+ * Validado em runtime quando uma rota x402 é chamada.
  */
-export const X402_PAY_TO = (() => {
-  const addr = process.env.NEXT_PUBLIC_X402_PAY_TO;
-  if (!addr) {
+export const X402_PAY_TO: string =
+  process.env.NEXT_PUBLIC_X402_PAY_TO ?? "";
+
+/** Validates X402_PAY_TO is set. Call from route handlers, not at module load. */
+export function assertX402Configured(): void {
+  if (!X402_PAY_TO) {
     throw new Error(
       "[x402] NEXT_PUBLIC_X402_PAY_TO not configured. Set it in .env.local"
     );
   }
-  return addr;
-})();
+}
 
 /**
  * URL do facilitador x402 (OpenZeppelin Relayer on Stellar).
