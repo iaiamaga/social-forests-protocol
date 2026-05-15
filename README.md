@@ -9,37 +9,16 @@
 
   ---
 
-  [![Frontend: Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
   [![Network: Stellar Soroban](https://img.shields.io/badge/Network-Stellar%20Soroban-7B6FEE?style=for-the-badge&logo=stellar&logoColor=white)](https://stellar.org)
-  [![Contracts: TypeScript & Rust](https://img.shields.io/badge/Contracts-TypeScript%20%2B%20Rust-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.rust-lang.org/)
-  [![Payments: Stripe](https://img.shields.io/badge/Payments-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://stripe.com)
+  [![Contracts: Rust](https://img.shields.io/badge/Contracts-Rust-orange?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+  [![Payments: x402](https://img.shields.io/badge/Payments-x402%20Protocol-00C2FF?style=for-the-badge)](https://www.x402.org/)
+  [![Frontend: Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
   [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg?style=for-the-badge)](LICENSE)
 
-  > 🇧🇷 [Versão em Português abaixo](#-social-forest-protocol-1)
-
+  > 🇺🇸 [English version above](#-social-forest-protocol)
+  
+  
 </div>
-
----
-
-## 📸 Platform Sneak Peek
-
-*Our B2C Virtual Oasis and B2B Dashboards bring the blockchain to life with beautiful, intuitive interfaces.*
-
-**1. B2C Dashboard & Missions**
-> Where users spend "Energy Drops" to earn LEAF tokens by regenerating the planet.
-> ![B2C Dashboard & Missions](/docs/assets/b2c-missions.png)
-
-**2. Virtual Oasis (SBT Gamification)**
-> An isometric grid where achievements (SBTs) turn into biodiversity (water wells, animals) and NFTs grow into real trees.
-> ![Virtual Oasis](/docs/assets/virtual-oasis.png)
-
-**3. RWA Telemetry (Asset Details)**
-> Data modal showing the real tree's height, sequestered carbon, and Stellar network hashes validating the *Proof of Flourishing* (PoF).
-> ![RWA Telemetry](/docs/assets/rwa-telemetry.png)
-
-**4. B2B Institutional Vision**
-> The panel where partner companies monitor their "Carbon Debt" (C-DEBT) and manage RWAs via Stripe MPP.
-> ![B2B Institutional Vision](/docs/assets/b2b-dashboard.png)
 
 ---
 
@@ -57,25 +36,145 @@ We call this model **RWA as a Service (RWAaaS)**: companies don't invest in the 
 
 ## ⚙️ How It Works: The Core Loop
 
-The Social Forests ecosystem bridges the gap between Web2 commerce and Web3 ecological assets.
-
 | Actor | Action & Value Proposition |
 |-------|----------------------------|
-| 🏢 **Company (B2B)** | Enters via Stripe (Fiat on-ramp), buys RWA fractions, and gains verifiable ESG impact. They configure rules to distribute "Green Cashback" to their clients. |
+| 🏢 **Company (B2B)** | Enters via x402 USDC payment, buys RWA fractions, and gains verifiable ESG impact. They configure rules to distribute "Green Cashback" to their clients. |
 | 🛰️ **Oracle (PoF)** | AI and satellite data validate biomass and carbon levels in the physical world. This is the "Engine" that guarantees the asset is thriving (Proof of Flourishing). |
-| 🌱 **Consumer (B2C)**| Earns Green Cashback (LEAF tokens and SBT achievements). They forge and evolve their ecological wealth in the Virtual Oasis, driving real-world reforestation. |
+| 🌱 **Consumer (B2C)** | Earns Green Cashback (LEAF tokens and SBT achievements). They forge and evolve their ecological wealth in the Virtual Oasis, driving real-world reforestation. |
 
 ---
 
-## 🔒 Smart Contracts (Soroban)
+## 🏗 Architecture — Smart Contracts (Soroban)
 
-Our infrastructure relies on three core Rust smart contracts deployed on the Stellar Soroban network:
+Six modular Rust contracts deployed on Stellar Soroban (SDK v26.0.0):
 
 | Contract | Role | Status |
 |----------|------|--------|
-| `rwa_vault` | **SEP-41 Standard.** Manages the minting of LEAF tokens and the African Mahogany (RWA) NFTs. Only mints when the PoF oracle validates physical growth. | 🔨 Testnet |
-| `sbt_reputation` | **Green Cashback & Soulbound Tokens.** Manages non-transferable impact points (SBTs/Farm Achievements) verifying user engagement. | 🔨 In Dev |
-| `hero_journey` | **Evolution & Burning.** Handles the burning of LEAFs and the rarity evolution of the NFT (Common → Rare → Legendary). | 🔨 In Dev |
+| `leaf_token` | **$LEAF Token (SEP-41).** Fungible token with mint/burn/transfer. Capped at 1B supply. 2-step admin transfer. TTL-managed balances. | ✅ Testnet |
+| `guardian_id` | **Consumer SBT.** Soulbound reputation token — XP, levels (1-50), 7 biological eras. Non-transferable. | ✅ Testnet |
+| `company_id` | **Company SBT.** Institutional identity — C-Cred balance, C-Debt, ODS badges, Vereda verification. | ✅ Testnet |
+| `collateral_vault` | **DeFi Marketplace.** Manages physical inventory (seedlings), C-Cred trading between companies, debt settlement. | ✅ Testnet |
+| `forest_mythos_vault` | **dNFT Engine.** Dynamic NFTs representing real trees — mint, forge (merge), oracle growth reports, 90-day anti-flip lock, tier evolution. | ✅ Testnet |
+| `journey_orchestrator` | **Maestro.** Orchestrates all contracts — B2B onboarding, B2C plant_tree, forge_mythos. Single entry point for complex flows. | ✅ Testnet |
+
+### Contract Interaction Graph
+
+```
+                    ┌─────────────────────────┐
+                    │  journey_orchestrator    │
+                    │  (Maestro)              │
+                    └──────┬──────┬──────┬────┘
+                           │      │      │
+              ┌────────────┘      │      └────────────┐
+              ▼                   ▼                    ▼
+     ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐
+     │  leaf_token    │  │ guardian_id  │  │ forest_mythos   │
+     │  ($LEAF)       │  │ (XP/SBT)    │  │ (dNFT Engine)   │
+     └────────────────┘  └──────────────┘  └─────────────────┘
+              ▲
+              │
+     ┌────────────────┐       ┌──────────────┐
+     │collateral_vault│──────▶│  company_id  │
+     │ (DeFi/C-Cred) │       │ (SBT Empresa)│
+     └────────────────┘       └──────────────┘
+```
+
+---
+
+## 🛡 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Smart Contracts | Rust · soroban-sdk 26.0.0 · `#![forbid(unsafe_code)]` |
+| Blockchain | Stellar Soroban (Testnet) |
+| Payments | x402 Protocol (USDC on Stellar) via OpenZeppelin Facilitator |
+| RWA Bridge | Etherfuse Stablebonds *(stub — in progress)* |
+| Frontend | Next.js 16 · React 19 · TailwindCSS 4 · Framer Motion |
+| Wallet | Freighter API v6 |
+| CI/CD | GitHub Actions (cargo test, WASM build, gitleaks, Next.js build) |
+
+---
+
+## 🔐 Security Model
+
+| Feature | Implementation |
+|---------|---------------|
+| Admin Transfer | 2-step `propose_admin` → `accept_admin` (leaf_token) |
+| Supply Cap | MAX_SUPPLY = 1B LEAF (enforced on-chain) |
+| Soulbound Enforcement | `transfer()` panics with `SoulboundToken` error (guardian_id) |
+| Anti-Flip Lock | 90-day transfer lock on Phase 1 dNFTs (forest_mythos_vault) |
+| Oracle Auth | API key header (`X-Oracle-Api-Key`) + server-side secret only |
+| x402 Replay Guard | In-memory payment hash deduplication with TTL |
+| Initialize Protection | All contracts panic on double-init + require_auth on admin |
+| Secret Scanning | gitleaks in CI pipeline |
+| Unsafe Code | `#![forbid(unsafe_code)]` on all 6 contracts |
+
+---
+
+## 💳 x402 Payment Flow
+
+The protocol uses the [x402 protocol](https://www.x402.org/) for HTTP-native USDC payments on Stellar:
+
+```
+Client → GET/POST endpoint → 402 Payment Required (with price + payTo)
+Client → Signs Soroban auth entry via Freighter
+Client → Re-sends request with X-Payment-Signature header
+Server → Facilitator verifies + settles on-chain
+Server → Returns prepared Soroban transaction XDR
+Client → Signs + submits the contract call
+```
+
+**Protected Endpoints:**
+
+| Endpoint | Price | Action |
+|----------|-------|--------|
+| `POST /api/v1/x402/plant-tree` | $0.01 USDC | Burns LEAF → mints dNFT → awards XP |
+| `POST /api/v1/x402/forge-mythos` | $0.05 USDC | Merges dNFTs into higher tier |
+| `GET /api/v1/x402/rwa-data/[id]` | $0.001 USDC | Returns dNFT telemetry data |
+
+---
+
+## 🌐 API Routes
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/v1/x402/plant-tree` | POST | x402-protected tree planting |
+| `/api/v1/x402/forge-mythos` | POST | x402-protected dNFT forging |
+| `/api/v1/x402/rwa-data/[id]` | GET | x402-protected RWA telemetry |
+| `/api/v1/oracle/report` | POST | Oracle injects biomass/carbon data (API key auth) |
+| `/api/v1/distribute` | POST | Company creates cashback campaigns + QR codes |
+| `/api/v1/etherfuse` | POST | Etherfuse RWA registration webhook *(stub)* |
+| `/api/v1/resgate` | POST | Consumer redeems QR code for LEAF *(simulated)* |
+
+---
+
+## 🔑 Environment Variables
+
+Create `.env.local` from `.env.example`:
+
+| Variable | Scope | Description |
+|----------|-------|-------------|
+| `NEXT_PUBLIC_X402_PAY_TO` | Client | Stellar address receiving x402 USDC payments |
+| `NEXT_PUBLIC_X402_FACILITATOR_URL` | Client | OpenZeppelin facilitator endpoint |
+| `X402_FACILITATOR_API_KEY` | Server | API key for the x402 facilitator |
+| `ORACLE_SECRET_KEY` | Server | Stellar secret key for oracle transactions |
+| `ORACLE_API_KEY` | Server | API key for oracle endpoint authentication |
+| `NEXT_PUBLIC_APP_URL` | Client | Base URL of the application |
+
+---
+
+## 📍 Contract Addresses (Testnet)
+
+| Contract | Address |
+|----------|---------|
+| leaf_token | `CDJQLHVAZDENXOXUMIDKYVZSLMXDRL3UUTMRP3SCC4YQAH6YLN6UU42X` |
+| guardian_id | `CBDHSG7DKVL3JUJALB5VKDQFYJLFKXXYM2WN2XE6GGXBQWSF7F5XGTSE` |
+| company_id | `CCMWNVLPVJ5WSD5BEQBUMQLE7JMTQS2THTFVI4G2OQ3UZISSSYLGSVEQ` |
+| collateral_vault | `CAW55PMUSPCJYG3U66M4O544XHDH62YTPDN2GIIFXBR7LRS5Q333X76K` |
+| forest_mythos_vault | `CBCTY64FH4GJBWDRU6CHLUHESEXCKAC3WNQR43FEPM5UOPSMDARMOX24` |
+| journey_orchestrator | `CDPDH4H4XYEW3DQHYFKR33HXDTOO472IQLO4FNWYA5QZFM6JT74RXH57` |
+
+**Mainnet:** TBD — pending security audit completion.
 
 ---
 
@@ -83,20 +182,24 @@ Our infrastructure relies on three core Rust smart contracts deployed on the Ste
 
 ```bash
 # Prerequisites
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 cargo install stellar-cli
 
 # Clone & install
 git clone https://github.com/G0vermind/social-forests-protocol.git
 cd social-forests-protocol
 
-# Build contracts
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/rwa_vault/Cargo.toml
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/sbt_reputation/Cargo.toml
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/hero_journey/Cargo.toml
+# Build all contracts
+make build
 
-# Frontend (Florestas.Social)
-cd apps/web && npm install && npm run dev  # → http://localhost:3000
+# Run tests
+make test
+
+# Frontend
+cd apps/web
+cp .env.example .env.local  # Fill in your values
+npm install
+npm run dev  # → http://localhost:3000
 ```
 
 ---
@@ -105,9 +208,9 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 | Phase | Status | Milestones |
 |-------|--------|-----------|
-| **Phase 1 — Seed** | 🔨 Building | `rwa_vault` + `sbt_reputation` + `hero_journey` on Testnet · Stripe MPP · First PoF registry · B2B pilot · Viveiro Maravilha "Client Zero" |
-| **Phase 2 — Growth** | 🔜 Planned | AI Vision oracle on Mainnet · LEAF cashback live · NFT Mogno evolution · `vereda-core` cross-contract · $FLORA governance · Sómogno integration |
-| **Phase 3 — Scale** | 🔜 Planned | `c_cred` + `c_debt` + `amm_impact` · Secondary RWA marketplace · DAO transition · Pecém Port export · Full institutional onboarding |
+| **Phase 1 — Seed** | 🔨 Building | 6 modular contracts on Testnet · x402 payment integration · Oracle API · B2C gamification (XP/Eras) · dNFT forging · Viveiro Maravilha "Client Zero" |
+| **Phase 2 — Growth** | 🔜 Planned | AI Vision oracle on Mainnet · Etherfuse Stablebond integration · Account Abstraction (Google login) · $FLORA governance contract · Sómogno integration · Multi-sig admin |
+| **Phase 3 — Scale** | 🔜 Planned | Secondary RWA marketplace · DAO transition · C-Cred AMM · Pecém Port export · Full institutional onboarding · Mainnet deployment |
 
 ---
 
@@ -152,7 +255,7 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 *Converting Ecological Flourishing into Programmable Prosperity on Stellar.*
 
-**[Stellar](https://stellar.org)** · **[Soroban](https://soroban.stellar.org)** · **[Stellar37°](https://stellar37.nearx.com.br)**
+**[Stellar](https://stellar.org)** · **[Soroban](https://soroban.stellar.org)** · **[x402](https://www.x402.org/)** · **[Stellar37°](https://stellar37.nearx.com.br)**
 
 📧 [gutogn@gmail.com](mailto:gutogn@gmail.com) · 📱 [+55 88 99643-7794](https://wa.me/5588996437794)
 
@@ -162,6 +265,7 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 <br />
 <br />
 <br />
+
 ---
 
 <div align="center">
@@ -175,31 +279,9 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
   ---
 
-  > 🇺🇸 [English version above](#-social-forest-protocol)
+  > 🇧🇷 [Versão em Português abaixo](#-social-forest-protocol-1)
 
 </div>
-
----
-
-## 📸 A Plataforma em Ação
-
-*Nosso Oásis Virtual B2C e os Dashboards B2B dão vida à blockchain com interfaces lindas e intuitivas.*
-
-**1. Dashboard B2C & Missões**
-> Onde o usuário gasta "Gotas de Energia" para ganhar LEAFs regenerando o planeta.
-> ![Dashboard B2C & Missões](/docs/assets/b2c-missions.png)
-
-**2. Oásis Virtual (Gamificação SBT)**
-> O grid isométrico onde as conquistas (SBTs) viram infraestrutura e biodiversidade (poços d'água, animais) e os NFTs viram árvores crescendo.
-> ![Oásis Virtual](/docs/assets/virtual-oasis.png)
-
-**3. Telemetria RWA (Detalhes do Ativo)**
-> O modal de dados que mostra a altura real da árvore, carbono sequestrado e hashes da rede Stellar validando o *Proof of Flourishing* (PoF).
-> ![Telemetria RWA](/docs/assets/rwa-telemetry.png)
-
-**4. Visão Institucional B2B**
-> O painel onde empresas parceiras monitoram o seu "Débito de Carbono" (C-DEBT) e gerem os RWAs via Stripe MPP.
-> ![Visão Institucional B2B](/docs/assets/b2b-dashboard.png)
 
 ---
 
@@ -217,25 +299,38 @@ Chamamos isso de **RWA as a Service (RWAaaS)**: as empresas não "investem" no a
 
 ## ⚙️ Como Funciona: O Core Loop
 
-O ecossistema Social Forests preenche a lacuna entre o comércio Web2 e os ativos ecológicos Web3.
-
 | Ator | Ação e Proposta de Valor |
 |------|--------------------------|
-| 🏢 **Empresa (B2B)** | Entra via Stripe (dinheiro fiat), compra frações de RWA e ganha impacto ESG comprovado. Elas configuram o "Cashback Verde" pros seus clientes. |
+| 🏢 **Empresa (B2B)** | Entra via pagamento USDC (x402), compra frações de RWA e ganha impacto ESG comprovado. Configura o "Cashback Verde" pros seus clientes. |
 | 🛰️ **Oráculo (PoF)** | IA e dados de satélite validam a biomassa e o carbono (O Motor). Garante que a árvore está crescendo. |
-| 🌱 **Consumidor (B2C)**| Ganha Cashback Verde (LEAF e SBTs), construindo o seu patrimônio ecológico no Oásis. |
+| 🌱 **Consumidor (B2C)** | Ganha Cashback Verde (LEAF e SBTs), construindo o seu patrimônio ecológico no Oásis. |
 
 ---
 
 ## 🔒 Mapa de Smart Contracts (Soroban)
 
-A nossa infraestrutura se apoia em três contratos principais em Rust na rede Stellar Soroban:
+Seis contratos modulares em Rust na rede Stellar Soroban (SDK v26.0.0):
 
 | Contrato | Função | Status |
 |----------|--------|--------|
-| `rwa_vault` | **Padrão SEP-41.** Gere o token LEAF e o Mint dos NFTs Mogno (RWAs). Só minera tokens quando o Oráculo PoF valida o crescimento físico. | 🔨 Testnet |
-| `sbt_reputation` | **Green Cashback & SBTs.** Gere os pontos de impacto não-transferíveis (SBTs/Conquistas da Fazenda) que validam o engajamento. | 🔨 Em Dev |
-| `hero_journey` | **Evolução e Queima.** Gere a queima de tokens LEAF e a evolução de raridade do NFT (Plantador → Lenda). | 🔨 Em Dev |
+| `leaf_token` | **Token $LEAF (SEP-41).** Mint/burn/transfer com supply máximo de 1B. Admin 2-step. TTL gerenciado. | ✅ Testnet |
+| `guardian_id` | **SBT Consumidor.** Reputação soulbound — XP, níveis (1-50), 7 eras biológicas. Intransferível. | ✅ Testnet |
+| `company_id` | **SBT Empresa.** Identidade institucional — C-Cred, C-Debt, selos ODS, verificação Vereda. | ✅ Testnet |
+| `collateral_vault` | **Marketplace DeFi.** Gestão de inventário físico (mudas), trading de C-Cred entre empresas, compensação de dívida. | ✅ Testnet |
+| `forest_mythos_vault` | **Motor dNFT.** NFTs dinâmicos representando árvores reais — mint, forja, relatórios do oráculo, lock anti-flip de 90 dias. | ✅ Testnet |
+| `journey_orchestrator` | **Maestro.** Orquestra todos os contratos — onboarding B2B, plantio B2C, forja mítica. Ponto de entrada único. | ✅ Testnet |
+
+---
+
+## 💳 Fluxo de Pagamento x402
+
+O protocolo usa o [protocolo x402](https://www.x402.org/) para pagamentos nativos em USDC via HTTP na Stellar:
+
+| Endpoint | Preço | Ação |
+|----------|-------|------|
+| `POST /api/v1/x402/plant-tree` | $0.01 USDC | Queima LEAF → mint dNFT → credita XP |
+| `POST /api/v1/x402/forge-mythos` | $0.05 USDC | Funde dNFTs em tier superior |
+| `GET /api/v1/x402/rwa-data/[id]` | $0.001 USDC | Retorna telemetria do dNFT |
 
 ---
 
@@ -243,20 +338,24 @@ A nossa infraestrutura se apoia em três contratos principais em Rust na rede St
 
 ```bash
 # Pré-requisitos
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 cargo install stellar-cli
 
 # Clone e instalação
 git clone https://github.com/G0vermind/social-forests-protocol.git
 cd social-forests-protocol
 
-# Build dos contratos
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/rwa_vault/Cargo.toml
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/sbt_reputation/Cargo.toml
-cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/hero_journey/Cargo.toml
+# Build de todos os contratos
+make build
 
-# Frontend (Florestas.Social)
-cd apps/web && npm install && npm run dev  # → http://localhost:3000
+# Testes
+make test
+
+# Frontend
+cd apps/web
+cp .env.example .env.local  # Preencha seus valores
+npm install
+npm run dev  # → http://localhost:3000
 ```
 
 ---
@@ -265,9 +364,9 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 | Fase | Status | Marcos |
 |------|--------|--------|
-| **Fase 1 — Seed** | 🔨 Construindo | `rwa_vault` + `sbt_reputation` + `hero_journey` na Testnet · Stripe MPP · Primeiro registro PoF · Piloto B2B · Viveiro Maravilha "Cliente Zero" |
-| **Fase 2 — Crescimento** | 🔜 Planejado | IA Vision oracle na Mainnet · LEAF cashback ativo · Sistema de evolução NFT Mogno · Cross-contract `vereda-core` · $FLORA governance · Integração Sómogno |
-| **Fase 3 — Escala** | 🔜 Planejado | `c_cred` + `c_debt` + `amm_impact` · Mercado secundário de RWA · Transição para DAO · Porto do Pecém exportação · Integração institucional completa |
+| **Fase 1 — Seed** | 🔨 Construindo | 6 contratos modulares na Testnet · Integração x402 · API Oracle · Gamificação B2C (XP/Eras) · Forja dNFT · Viveiro Maravilha "Cliente Zero" |
+| **Fase 2 — Crescimento** | 🔜 Planejado | IA Vision oracle na Mainnet · Integração Etherfuse Stablebonds · Account Abstraction (login Google) · Contrato de governança $FLORA · Integração Sómogno · Admin multi-sig |
+| **Fase 3 — Escala** | 🔜 Planejado | Mercado secundário de RWA · Transição para DAO · AMM de C-Cred · Porto do Pecém exportação · Onboarding institucional completo · Deploy Mainnet |
 
 ---
 
@@ -289,8 +388,8 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 - **Gustavo Gonçalves** · `Founder & Tech Lead` ([LinkedIn](https://www.linkedin.com/in/gustavo-gon%C3%A7alves-9a4a1523/) · [GitHub](https://github.com/G0vermind))
 - **Vinicius Braz Rocha** · `Arquiteto ReFi` ([LinkedIn](https://www.linkedin.com/in/vrselfmedia/) · [GitHub](https://github.com/glocalVR))
-- **Clarkson Luiz Buriche** · `Dev Ambiental & IA` ([LinkedIn](https://www.linkedin.com/in/clarkson-luiz-buriche-bartalini-80446a6b/))
-- **Iara Magalhães** · `Web3 Developer` ([LinkedIn](https://www.linkedin.com/in/iaiakedemy))
+- **Clarkson Luiz Buriche** · `Dev Ambiental & IA` ([LinkedIn](https://www.linkedin.com/in/clarkson-luiz-buriche-bartalini-80446a6b/) · [GitHub](https://github.com/catitodev))
+- **Iara Magalhães** · `Web3 Developer` ([LinkedIn](https://www.linkedin.com/in/iaiakedemy) · [GitHub](https://github.com/iaiamaga))
 
 ### Advisors — Council of Guardians
 - **Francisco das Chagas Rosa** · `Consultor Agronômico`
@@ -302,9 +401,9 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 > A **[RE]³ - ReReGeneradora** é a primeira desaceleradora que se tem notícia ⚡ e ligada ao que já está mudando a lógica do mundo que vivemos: IA & Web3.
 
-- **Pedro Bruder** · `Conselheiro [RE]³` ([LinkedIn](https://www.linkedin.com/in/pedrobruder))
-- **Vinícius Braz Rocha** · `Conselheiro [RE]³ & Co-iniciador do Protocolo` ([LinkedIn](https://www.linkedin.com/in/vrselfmedia/))
-- **Enzo Garcia** · `Conselheiro [RE]³` ([LinkedIn](https://www.linkedin.com/in/enzo-garcia-295066316))
+- **Pedro Bruder** · `Conselheiro [RE]³` ([LinkedIn](https://www.linkedin.com/in/pedrobruder) · [GitHub](https://github.com/BasedCaveman))
+- **Vinícius Braz Rocha** · `Conselheiro [RE]³ & Co-iniciador do Protocolo` ([LinkedIn](https://www.linkedin.com/in/vrselfmedia/) · [GitHub](https://github.com/glocalVR))
+- **Enzo Garcia** · `Conselheiro [RE]³` ([LinkedIn](https://www.linkedin.com/in/enzo-garcia-295066316) · [GitHub](https://github.com/F0rtyF0ur))
 
 ---
 
@@ -312,7 +411,7 @@ cd apps/web && npm install && npm run dev  # → http://localhost:3000
 
 *Convertendo Florescimento Ecológico em Prosperidade Programável na Stellar.*
 
-**[Stellar](https://stellar.org)** · **[Soroban](https://soroban.stellar.org)** · **[Stellar37°](https://stellar37.nearx.com.br)**
+**[Stellar](https://stellar.org)** · **[Soroban](https://soroban.stellar.org)** · **[x402](https://www.x402.org/)** · **[Stellar37°](https://stellar37.nearx.com.br)**
 
 📧 [gutogn@gmail.com](mailto:gutogn@gmail.com) · 📱 [+55 88 99643-7794](https://wa.me/5588996437794)
 
