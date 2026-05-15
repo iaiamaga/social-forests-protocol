@@ -50,7 +50,7 @@ jobs:
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 2 — CVE AUDIT (cargo-audit)
 # Verifica dependências contra banco de vulnerabilidades RustSec
-# Roda em paralelo com secrets-scan — não depende de build
+# Usa a Action oficial rustsec para evitar problemas de parsing manual do CVSS
 # ─────────────────────────────────────────────────────────────────────────────
   cve-audit:
     name: CVE Audit (cargo-audit)
@@ -61,20 +61,11 @@ jobs:
       - name: Install Rust Stable
         uses: dtolnay/rust-toolchain@stable
 
-      # Cache do binário compilado — evita recompilar em cada run (~3 min)
-      - name: Cache cargo-audit binary
-        id: cache-cargo-audit
-        uses: actions/cache@v4.2.2
+      # Utiliza a action oficial que já resolve problemas de dependências e CVSS v4
+      - name: Security Audit
+        uses: rustsec/audit-check@v2.0.0
         with:
-          path: ~/.cargo/bin/cargo-audit
-          key: cargo-audit-${{ runner.os }}-v0.21
-
-      - name: Install cargo-audit
-        if: steps.cache-cargo-audit.outputs.cache-hit != 'true'
-        run: cargo install cargo-audit --locked --version "^0.21"
-
-      - name: Run cargo audit
-        run: cargo audit
+          token: ${{ secrets.GITHUB_TOKEN }}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 3 — CONTRACT TESTS
