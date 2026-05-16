@@ -1,0 +1,2 @@
+# Soroban contract IDs are public blockchain addresses, not secrets.
+e0cb0b494be4d196c9ae0376b17fba9e708b1967:apps/web/src/lib/soroban/config.ts:generic-api-key:2
