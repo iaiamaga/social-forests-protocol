@@ -20,6 +20,7 @@ export function AppProviders({ children }) {
         },
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
+          supportedChains: [{ type: "ed25519" }],
         },
       }}
     >
