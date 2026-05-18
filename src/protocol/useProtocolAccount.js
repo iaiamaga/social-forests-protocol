@@ -56,7 +56,11 @@ function getWalletAddressFromPrivyUser(user) {
 
 function getFallbackWalletAddress() {
   const fallbackInstitutionWallet = import.meta.env.VITE_INSTITUTION_TEST_WALLET;
-  return isStellarPublicKey(fallbackInstitutionWallet) ? fallbackInstitutionWallet : null;
+  if (isStellarPublicKey(fallbackInstitutionWallet)) return fallbackInstitutionWallet;
+
+  // Fallback hardcoded para testnet — conta relayer do protocolo
+  const PROTOCOL_TESTNET_WALLET = 'GAAORWQOQQDSWXLVRRLGWBAMW2LT5IGPBHK6GGVTAX76D2D3QZ22L6CO';
+  return PROTOCOL_TESTNET_WALLET;
 }
 
 function getProtocolWalletAddress(protocolAccount) {
