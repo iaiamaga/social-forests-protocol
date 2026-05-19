@@ -1,22 +1,20 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/context/AuthContext';
+import ClientOnly from '@/components/ClientOnly';
+import PaymentProvider from '@/components/PaymentProvider';
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
-
-export const metadata: Metadata = {
-  title: 'Florestas.Social — Green RWA na Stellar',
-  description:
-    'Protocolo B2B2C de tokenização de Mogno Africano na rede Stellar. Finanças Regenerativas, Proof of Flourishing e Green Cashback.',
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-brand-bg-light dark:bg-brand-dark text-slate-900 dark:text-slate-50 transition-colors duration-300">
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="pt-BR">
+      <body>
+        <ClientOnly>
+          <PaymentProvider>
+            {children}
+          </PaymentProvider>
+        </ClientOnly>
       </body>
     </html>
   );

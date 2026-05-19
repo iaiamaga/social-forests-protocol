@@ -17,3 +17,5 @@ export const NETWORK_CONFIG = {
   network: "testnet",
   rpcUrl: "https://soroban-testnet.stellar.org:443"
 };
+
+export const NETWORK_PASSPHRASE = "Test SDF Network ; September 2015";
