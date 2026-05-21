@@ -8,17 +8,17 @@ import ClientOnly from "@/components/ClientOnly";
 
 export default function TreeDetailsPage() {
   const { id } = useParams();
-  const { mythosVault } = useSorobanContracts();
+  const { forestMythosVault } = useSorobanContracts();
   const [oracleData, setOracleData] = useState<DnftRecord | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (id && mythosVault) {
+      if (id && forestMythosVault) {
         setLoading(true);
         try {
           // Chamada corrigida para o método gerado pelo Soroban
-          const result = await mythosVault.get_dnft({ token_id: Number(id) });
+          const result = await forestMythosVault.get_dnft({ token_id: Number(id) });
 
           if (result && result.result) {
             setOracleData(result.result as unknown as DnftRecord);
@@ -31,7 +31,7 @@ export default function TreeDetailsPage() {
       }
     };
     fetchData();
-  }, [id, mythosVault]);
+  }, [id, forestMythosVault]);
 
   return (
     <ClientOnly>
