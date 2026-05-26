@@ -1,3 +1,4 @@
+'use client';
 import Image from 'next/image';
 
 interface BrandLogoProps {
@@ -14,6 +15,7 @@ export function BrandLogo({ className = '' }: BrandLogoProps) {
         width={40}
         height={40}
         className="object-contain block sm:hidden"
+        style={{ height: 'auto', width: 'auto' }}
         priority
       />
 
@@ -24,6 +26,7 @@ export function BrandLogo({ className = '' }: BrandLogoProps) {
         width={180}
         height={48}
         className="object-contain hidden sm:block dark:hidden"
+        style={{ height: 'auto', width: 'auto' }}
         priority
       />
 
@@ -34,6 +37,7 @@ export function BrandLogo({ className = '' }: BrandLogoProps) {
         width={180}
         height={48}
         className="object-contain hidden sm:dark:block"
+        style={{ height: 'auto', width: 'auto' }}
         priority
       />
     </div>

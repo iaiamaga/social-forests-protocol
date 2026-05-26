@@ -1,0 +1,7 @@
+{
+    "name": "lib",
+    "version": "1.0.0",
+    "dependencies": {
+        "@stellar/stellar-sdk": "^15.1.0"
+    }
+}

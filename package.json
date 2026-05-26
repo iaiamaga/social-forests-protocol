@@ -2,5 +2,8 @@
   "dependencies": {
     "stripe": "^22.1.1",
     "ws": "^8.20.1"
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "^15.0.0"
   }
 }

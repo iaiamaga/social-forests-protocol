@@ -22,17 +22,22 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@bindings/*": [
+        "../lib/soroban/bindings/*"
       ]
     }
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts",
+    "../lib/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
