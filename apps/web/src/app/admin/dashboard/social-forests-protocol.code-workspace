@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../.."
+		},
+		{
+			"path": "../../../../../../../vereda-verify-soroban"
+		}
+	],
+	"settings": {
+		"makefile.configureOnOpen": false
+	}
+}
